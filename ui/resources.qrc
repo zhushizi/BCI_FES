@@ -1,0 +1,140 @@
+<RCC>
+    <!-- UI图片资源，更新命令：cd ui; pyside6-rcc resources.qrc -o resources_rc.py -->
+    
+    <!-- 登录界面图片资源 -->
+    <qresource prefix="/login">
+        <!-- 文件路径：相对于 .qrc 的位置 -->
+        <file>pic/login_account.png</file>
+        <file>pic/login_background.png</file>
+        <file>pic/login_HW.png</file>
+        <file>pic/login_line.png</file>
+        <file>pic/login_product.png</file>
+        <file>pic/login_pwdclose.png</file>
+        <file>pic/login_pwdlock.png</file>
+        <file>pic/login_rectangle.png</file>
+        <file>pic/login_tip.png</file>
+        <file>pic/login_welcome.png</file>
+        <file>pic/login_checked.png</file>
+        <file>pic/login_pwdopen.png</file>
+    </qresource>
+    
+    <!-- 主界面图片资源 -->
+    <qresource prefix="/main">
+        <!-- 文件路径：相对于 .qrc 的位置 -->
+        <file>pic/main_background.png</file>
+        <file>pic/main_BCI.png</file>
+        <file>pic/main_logo.png</file>
+        <file>pic/main_logout.png</file>
+        <file>pic/main_name_rect.png</file>
+        <file>pic/main_patient_off.png</file>
+        <file>pic/main_patient_on.png</file>
+        <file>pic/main_pingpong_on.png</file>
+        <file>pic/main_pingpong_off.png</file>
+        <file>pic/main_plan_off.png</file>
+        <file>pic/main_plan_on.png</file>
+        <file>pic/main_quit.png</file>
+        <file>pic/main_set_off.png</file>
+        <file>pic/main_set_on.png</file>
+        <file>pic/main_small.png</file>
+        <file>pic/main_status_rect.png</file>
+        <file>pic/main_treat_off.png</file>
+        <file>pic/main_treat_on.png</file>
+        <file>pic/main_wifi_on.png</file>
+        <file>pic/main_wifi_off.png</file>
+        <file>pic/main_tabtitle.png</file>
+        <file>pic/main_background2.png</file>
+        <file>pic/main_buttonbackgro.png</file>
+        <file>pic/main_up_ssvep.png</file>
+        <file>pic/main_up_ssmvep.png</file>
+        <file>pic/main_up_mi.png</file>
+        <file>pic/main_up_mix.png</file>
+        <file>pic/main_down_ssvep.png</file>
+        <file>pic/main_down_ssmvep.png</file>
+        <file>pic/main_down_mi.png</file>
+        <file>pic/main_down_mix.png</file>
+        <file>pic/main_up_click_ssvep.png</file>
+        <file>pic/main_up_click_ssmvep.png</file>
+        <file>pic/main_up_click_mi.png</file>
+        <file>pic/main_up_click_mix.png</file>
+        <file>pic/main_down_click_ssvep.png</file>
+        <file>pic/main_down_click_ssmvep.png</file>
+        <file>pic/main_down_click_mi.png</file>
+        <file>pic/main_down_click_mix.png</file>
+        <file>pic/main_color.png</file>
+        <file>pic/main_tips.png</file>
+        <file>pic/main_tips_logo.png</file>
+
+    </qresource>
+
+    <!-- 主界面图片资源 -->
+    <qresource prefix="/treat">
+        <!-- 文件路径：相对于 .qrc 的位置 -->
+        <file>pic/treat_BCI_off.png</file>
+        <file>pic/treat_home.png</file>
+        <file>pic/treat_new.png</file>
+        <file>pic/treat_patient.png</file>
+        <file>pic/treat_undo.png</file>
+        <file>pic/treat_select.png</file>
+        <file>pic/treat_reset.png</file>
+        <file>pic/treat_search.png</file>
+        <file>pic/treat_del.png</file>
+        <file>pic/treat_edit.png</file>
+        <file>pic/treat_bcitip.png</file>
+        <file>pic/treat_practising.png</file>
+        <file>pic/sub_backgro.png</file>
+        <file>pic/treat_patient_logo.png</file>
+        <file>pic/treat_start.png</file>
+        <file>pic/treat_shut.png</file>
+        <file>pic/treat_pause.png</file>
+        <file>pic/treat_power_logo.png</file>
+        
+    </qresource>
+
+    <!-- 主界面图片资源 -->
+    <qresource prefix="/patient">
+        <!-- 文件路径：相对于 .qrc 的位置 -->
+        <file>pic/patient_in.png</file>
+        <file>pic/patient_new.png</file>
+        <file>pic/patient_out.png</file>
+        <file>pic/patient_reset.png</file>
+        <file>pic/patient_edit.png</file>
+        <file>pic/patient_del.png</file>
+        <file>pic/patient_recordreturn.png</file>
+        <file>pic/patient_recorddel.png</file>
+        <file>pic/patient_title.png</file>
+        <file>pic/patient_newa_logo.png</file>
+        <file>pic/patient_revise_logo.png</file>
+        <file>pic/patient_select_logo.png</file>
+        <file>pic/patient_select_close.png</file>
+    </qresource>
+
+    <!-- 主界面图片资源 -->
+    <qresource prefix="/preprocess">
+        <!-- 文件路径：相对于 .qrc 的位置 -->
+        <file>pic/preprocess_eletip.png</file>
+        <file>pic/preprocess_eletitle.png</file>
+        <file>pic/preprocess_eleTurnBig.png</file>
+        <file>pic/preprocess_eleTurnSmall.png</file>
+        <file>pic/preprocess_head.png</file>
+        <file>pic/preprocess_return.png</file>
+        <file>pic/preprocess_titlebackgro.png</file>
+        <file>pic/preprocess_bciImpeTitle.png</file>
+        <file>pic/preprocess_elebackgro.png</file>
+        <file>pic/preprocess_Electrode_head.png</file>
+    </qresource>
+
+    <!-- 主界面图片资源 -->
+    <qresource prefix="/plan">
+        <!-- 文件路径：相对于 .qrc 的位置 -->
+        <file>pic/plan_new.png</file>
+    </qresource>
+
+    <!-- 主界面图片资源 -->
+    <qresource prefix="/set">
+        <!-- 文件路径：相对于 .qrc 的位置 -->
+        <file>pic/set_volumeshut.png</file>
+        <file>pic/set_volumeopen.png</file>
+        <file>pic/set_volumedown.png</file>
+        <file>pic/set_volumeup.png</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,13 @@
+# Python / IDE artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Generated images / analysis outputs
+db/ERDs/
+db/ReactionTimeCurve/
+
+# External protocol docs / resource files
+*JSON-RPC*.pdf
+*JSON-RPC*.md
+
