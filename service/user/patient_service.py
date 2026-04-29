@@ -23,6 +23,7 @@ class PatientService(_DbBase):
             "UserId", "PhoneNumber", "IdCard", "DoctorName",
             "Notes", "OperationDate", "Birthday",
             "DiagnosisResult", "DurationOfillness", "UnderlyingHealthCondition",
+            "Leg",
         )
         self._treat_record_fields = (
             "PatientId",
@@ -110,8 +111,9 @@ class PatientService(_DbBase):
                 PatientId, Name, Sex, Age, VisitTime,
                 UserId, PhoneNumber, IdCard, DoctorName,
                 Notes, OperationDate, Birthday,
-                DiagnosisResult, DurationOfillness, UnderlyingHealthCondition
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                DiagnosisResult, DurationOfillness, UnderlyingHealthCondition,
+                Leg
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             patient.get("PatientId", ""),
@@ -129,6 +131,7 @@ class PatientService(_DbBase):
             patient.get("DiagnosisResult", ""),
             patient.get("DurationOfillness", ""),
             patient.get("UnderlyingHealthCondition", ""),
+            patient.get("Leg", "双腿"),
         )
         return self._execute_update(sql, params, "新增患者失败") > 0
 
@@ -156,7 +159,8 @@ class PatientService(_DbBase):
                 Birthday = ?,
                 DiagnosisResult = ?,
                 DurationOfillness = ?,
-                UnderlyingHealthCondition = ?
+                UnderlyingHealthCondition = ?,
+                Leg = ?
             WHERE PatientId = ?
         """
         params = (
@@ -174,6 +178,7 @@ class PatientService(_DbBase):
             patient.get("DiagnosisResult", ""),
             patient.get("DurationOfillness", ""),
             patient.get("UnderlyingHealthCondition", ""),
+            patient.get("Leg", "双腿"),
             patient.get("PatientId", ""),
         )
         return self._execute_update(sql, params, "更新患者失败") > 0

@@ -199,7 +199,7 @@
    <property name="geometry">
     <rect>
      <x>460</x>
-     <y>150</y>
+     <y>230</y>
      <width>71</width>
      <height>25</height>
     </rect>
@@ -228,8 +228,8 @@
   <widget class="QLineEdit" name="lineEdit_patientId">
    <property name="geometry">
     <rect>
-     <x>537</x>
-     <y>149</y>
+     <x>540</x>
+     <y>220</y>
      <width>271</width>
      <height>31</height>
     </rect>
@@ -306,9 +306,9 @@ QComboBox QAbstractItemView { background-color: white; }</string>
   <widget class="QLabel" name="label_age">
    <property name="geometry">
     <rect>
-     <x>500</x>
-     <y>230</y>
-     <width>51</width>
+     <x>401</x>
+     <y>151</y>
+     <width>52</width>
      <height>25</height>
     </rect>
    </property>
@@ -336,8 +336,8 @@ QComboBox QAbstractItemView { background-color: white; }</string>
   <widget class="QLineEdit" name="spinBox_age">
    <property name="geometry">
     <rect>
-     <x>558</x>
-     <y>228</y>
+     <x>460</x>
+     <y>150</y>
      <width>101</width>
      <height>31</height>
     </rect>
@@ -440,11 +440,11 @@ QComboBox QAbstractItemView { background-color: white; }</string>
    <property name="styleSheet">
     <string notr="true">border: 1px solid gray; border-radius: 5px;</string>
    </property>
-   <property name="placeholderText">
-    <string>请输入电话号码</string>
-   </property>
    <property name="maxLength">
     <number>11</number>
+   </property>
+   <property name="placeholderText">
+    <string>请输入电话号码</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_idCard">
@@ -489,11 +489,11 @@ QComboBox QAbstractItemView { background-color: white; }</string>
    <property name="styleSheet">
     <string notr="true">border: 1px solid gray; border-radius: 5px;</string>
    </property>
-   <property name="placeholderText">
-    <string>请输入身份证号</string>
-   </property>
    <property name="maxLength">
     <number>18</number>
+   </property>
+   <property name="placeholderText">
+    <string>请输入身份证号</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_note">
@@ -751,6 +751,65 @@ border-image: url(:/patient/pic/patient_select_close.png);</string>
    <property name="flat">
     <bool>true</bool>
    </property>
+  </widget>
+  <widget class="QLabel" name="label_gende">
+   <property name="geometry">
+    <rect>
+     <x>628</x>
+     <y>152</y>
+     <width>51</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>0</width>
+     <height>25</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>16777215</width>
+     <height>25</height>
+    </size>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>14</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>患腿：</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBox_leg">
+   <property name="geometry">
+    <rect>
+     <x>686</x>
+     <y>150</y>
+     <width>161</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string>QComboBox { border: 1px solid gray; border-radius: 5px; background-color: white; }
+QComboBox QAbstractItemView { background-color: white; }</string>
+   </property>
+   <item>
+    <property name="text">
+     <string>双腿</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>左腿</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>右腿</string>
+    </property>
+   </item>
   </widget>
  </widget>
  <resources>

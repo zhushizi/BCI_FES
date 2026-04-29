@@ -55,6 +55,12 @@ class PatientNewDialog(BaseUiDialog):
         auto_pid = QDateTime.currentDateTime().toString("yyMMddHHmmss")
         safe_call(self._logger, getattr(pid_input, "setText", None), auto_pid)
 
+        combo_leg = get_ui_attr(self.ui, "comboBox_leg")
+        if combo_leg:
+            default_leg_index = combo_leg.findText("双腿")
+            if default_leg_index != -1:
+                safe_call(self._logger, combo_leg.setCurrentIndex, default_leg_index)
+
         if self._is_edit:
             self.setWindowTitle("编辑患者")
             title_label = get_ui_attr(self.ui, "label")
@@ -131,6 +137,12 @@ class PatientNewDialog(BaseUiDialog):
             phone_input = get_ui_attr(self.ui, "lineEdit_phone")
             safe_call(self._logger, getattr(phone_input, "setFocus", None))
             return
+        leg = self._get_combo_text("comboBox_leg")
+        if not leg:
+            TipsDialog.show_tips(self, "请选择患腿（必填项）")
+            leg_input = get_ui_attr(self.ui, "comboBox_leg")
+            safe_call(self._logger, getattr(leg_input, "setFocus", None))
+            return
         self.accept()
 
     def _get_text(self, widget_name: str) -> str:
@@ -138,6 +150,15 @@ class PatientNewDialog(BaseUiDialog):
         if widget is not None:
             try:
                 return widget.text().strip()
+            except Exception:
+                return ""
+        return ""
+
+    def _get_combo_text(self, widget_name: str) -> str:
+        widget = get_ui_attr(self.ui, widget_name)
+        if widget is not None:
+            try:
+                return widget.currentText().strip()
             except Exception:
                 return ""
         return ""
@@ -152,6 +173,12 @@ class PatientNewDialog(BaseUiDialog):
             index = combo_gender.findText(sex)
             if index != -1:
                 safe_call(self._logger, combo_gender.setCurrentIndex, index)
+        combo_leg = get_ui_attr(self.ui, "comboBox_leg")
+        if combo_leg:
+            leg = data.get("Leg", "双腿") or "双腿"
+            index = combo_leg.findText(leg)
+            if index != -1:
+                safe_call(self._logger, combo_leg.setCurrentIndex, index)
         spin_age = get_ui_attr(self.ui, "spinBox_age")
         if spin_age:
             age = data.get("Age")
@@ -177,6 +204,8 @@ class PatientNewDialog(BaseUiDialog):
         if combo_gender:
             sex = combo_gender.currentText()
 
+        leg = self._get_combo_text("comboBox_leg") or "双腿"
+
         age = None
         spin_age = get_ui_attr(self.ui, "spinBox_age")
         if spin_age:
@@ -200,6 +229,7 @@ class PatientNewDialog(BaseUiDialog):
             "PatientId": self._get_text("lineEdit_patientId"),
             "Name": self._get_text("lineEdit_name"),
             "Sex": sex,
+            "Leg": leg,
             "Age": age,
             "VisitTime": visit_time,
             "PhoneNumber": self._get_text("lineEdit_phone"),
