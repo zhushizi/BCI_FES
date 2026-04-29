@@ -46,7 +46,7 @@ class TreatFlowApp:
         parts = name.replace("pushButton_", "").split("_")
         body_key = parts[0] if parts else ""
         paradigm_key = parts[1] if len(parts) > 1 else ""
-        body_map = {"up": "上肢", "down": "下肢"}
+        body_map = {"gou": "小腿", "tai": "大腿"}
         paradigm_map = {"ssvep": "SSVEP", "ssmvep": "SSMVEP", "mi": "MI", "mix": "MIX"}
         body_display = body_map.get(body_key, "")
         paradigm_display = paradigm_map.get(paradigm_key, "")
@@ -70,12 +70,12 @@ class TreatFlowApp:
             paradigm = ""
 
         exe_key_map = {
-            ("up", "ssmvep"): "ssmvep_exe_up",
-            ("up", "ssvep"): "ssvep_exe_up",
-            ("up", "mi"): "mi_exe_up",
-            ("down", "ssmvep"): "ssmvep_exe_down",
-            ("down", "ssvep"): "ssvep_exe_down",
-            ("down", "mi"): "mi_exe_down",
+            ("gou", "ssmvep"): "ssmvep_exe_gou",
+            ("gou", "ssvep"): "ssvep_exe_gou",
+            ("gou", "mi"): "mi_exe_gou",
+            ("tai", "ssmvep"): "ssmvep_exe_tai",
+            ("tai", "ssvep"): "ssvep_exe_tai",
+            ("tai", "mi"): "mi_exe_tai",
         }
         class_map = {"ssmvep": "SSMVEP", "ssvep": "SSVEP", "mi": "MI"}
         exe_key = exe_key_map.get((body_part, paradigm)) if body_part and paradigm else None

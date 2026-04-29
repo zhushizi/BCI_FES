@@ -271,14 +271,12 @@ class MainWindowTreatFlow:
         connect_click("pushButton_tab1select", self.open_patient_select_dialog)
 
         treat_buttons = [
-            "pushButton_up_ssvep",
-            "pushButton_up_ssmvep",
-            "pushButton_up_mi",
-            "pushButton_up_mix",
-            "pushButton_down_ssvep",
-            "pushButton_down_ssmvep",
-            "pushButton_down_mi",
-            "pushButton_down_mix",
+            "pushButton_gou_ssvep",
+            "pushButton_gou_ssmvep",
+            "pushButton_gou_mi",
+            "pushButton_tai_ssvep",
+            "pushButton_tai_ssmvep",
+            "pushButton_tai_mi",
         ]
         for button_name in treat_buttons:
             button = get_ui_attr(self.ui, button_name)

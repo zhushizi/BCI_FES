@@ -152,8 +152,7 @@ class TrainingMainController:
         stim_position_raw = (session_data or {}).get("StimPosition", "")
         paradigm = (session_data or {}).get("Paradigm", "")
 
-        # 刺激部位取值映射：up -> 上肢，down -> 下肢
-        stim_position = {"up": "上肢", "down": "下肢"}.get(
+        stim_position = {"gou": "小腿", "tai": "大腿"}.get(
             str(stim_position_raw).strip().lower(), stim_position_raw or ""
         )
 

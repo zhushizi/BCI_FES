@@ -36,7 +36,7 @@
     <rect>
      <x>47</x>
      <y>24</y>
-     <width>191</width>
+     <width>201</width>
      <height>54</height>
     </rect>
    </property>
@@ -79,7 +79,7 @@ border-image: url(:/login/pic/login_HW.png);</string>
 </string>
    </property>
    <property name="text">
-    <string>非侵入式脑机接口神经肌肉电刺激系统</string>
+    <string>非侵入式脑机接口下肢康复训练系统</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">
@@ -355,7 +355,7 @@ QTabWidget#tabWidget QTabBar::tab {
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>3</number>
+      <number>0</number>
      </property>
      <property name="tabBarAutoHide">
       <bool>false</bool>
@@ -412,7 +412,7 @@ QTabWidget#tabWidget QTabBar::tab {
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_up_ssvep">
+      <widget class="QPushButton" name="pushButton_gou_ssvep">
        <property name="geometry">
         <rect>
          <x>640</x>
@@ -428,15 +428,15 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">QPushButton#pushButton_up_ssvep { background-color: #DBE9F7; border-radius: 42px;
+       <string notr="true">QPushButton#pushButton_gou_ssvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_up_ssvep.png); }
-QPushButton#pushButton_up_ssvep:pressed { border-image: url(:/main/pic/main_up_click_ssvep.png); }</string>
+QPushButton#pushButton_gou_ssvep:pressed { border-image: url(:/main/pic/main_up_click_ssvep.png); }</string>
        </property>
        <property name="text">
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_up_ssmvep">
+      <widget class="QPushButton" name="pushButton_gou_ssmvep">
        <property name="geometry">
         <rect>
          <x>150</x>
@@ -452,15 +452,15 @@ QPushButton#pushButton_up_ssvep:pressed { border-image: url(:/main/pic/main_up_c
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">QPushButton#pushButton_up_ssmvep { background-color: #DBE9F7; border-radius: 42px;
+       <string notr="true">QPushButton#pushButton_gou_ssmvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_up_ssmvep.png); }
-QPushButton#pushButton_up_ssmvep:pressed { border-image: url(:/main/pic/main_up_click_ssmvep.png); }</string>
+QPushButton#pushButton_gou_ssmvep:pressed { border-image: url(:/main/pic/main_up_click_ssmvep.png); }</string>
        </property>
        <property name="text">
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_up_mi">
+      <widget class="QPushButton" name="pushButton_gou_mi">
        <property name="geometry">
         <rect>
          <x>1140</x>
@@ -476,15 +476,15 @@ QPushButton#pushButton_up_ssmvep:pressed { border-image: url(:/main/pic/main_up_
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">QPushButton#pushButton_up_mi { background-color: #DBE9F7; border-radius: 42px;
+       <string notr="true">QPushButton#pushButton_gou_mi { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_up_mi.png); }
-QPushButton#pushButton_up_mi:pressed { border-image: url(:/main/pic/main_up_click_mi.png); }</string>
+QPushButton#pushButton_gou_mi:pressed { border-image: url(:/main/pic/main_up_click_mi.png); }</string>
        </property>
        <property name="text">
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_down_ssvep">
+      <widget class="QPushButton" name="pushButton_tai_ssvep">
        <property name="geometry">
         <rect>
          <x>640</x>
@@ -500,15 +500,15 @@ QPushButton#pushButton_up_mi:pressed { border-image: url(:/main/pic/main_up_clic
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">QPushButton#pushButton_down_ssvep { background-color: #DBE9F7; border-radius: 42px;
+       <string notr="true">QPushButton#pushButton_tai_ssvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_down_ssvep.png); }
-QPushButton#pushButton_down_ssvep:pressed { border-image: url(:/main/pic/main_down_click_ssvep.png); }</string>
+QPushButton#pushButton_tai_ssvep:pressed { border-image: url(:/main/pic/main_down_click_ssvep.png); }</string>
        </property>
        <property name="text">
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_down_ssmvep">
+      <widget class="QPushButton" name="pushButton_tai_ssmvep">
        <property name="geometry">
         <rect>
          <x>150</x>
@@ -524,15 +524,15 @@ QPushButton#pushButton_down_ssvep:pressed { border-image: url(:/main/pic/main_do
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">QPushButton#pushButton_down_ssmvep { background-color: #DBE9F7; border-radius: 42px;
+       <string notr="true">QPushButton#pushButton_tai_ssmvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_down_ssmvep.png); }
-QPushButton#pushButton_down_ssmvep:pressed { border-image: url(:/main/pic/main_down_click_ssmvep.png); }</string>
+QPushButton#pushButton_tai_ssmvep:pressed { border-image: url(:/main/pic/main_down_click_ssmvep.png); }</string>
        </property>
        <property name="text">
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_down_mi">
+      <widget class="QPushButton" name="pushButton_tai_mi">
        <property name="geometry">
         <rect>
          <x>1140</x>
@@ -548,9 +548,9 @@ QPushButton#pushButton_down_ssmvep:pressed { border-image: url(:/main/pic/main_d
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">QPushButton#pushButton_down_mi { background-color: #DBE9F7; border-radius: 42px;
+       <string notr="true">QPushButton#pushButton_tai_mi { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_down_mi.png); }
-QPushButton#pushButton_down_mi:pressed { border-image: url(:/main/pic/main_down_click_mi.png); }</string>
+QPushButton#pushButton_tai_mi:pressed { border-image: url(:/main/pic/main_down_click_mi.png); }</string>
        </property>
        <property name="text">
         <string/>
@@ -575,7 +575,7 @@ QPushButton#pushButton_down_mi:pressed { border-image: url(:/main/pic/main_down_
         <string notr="true">color: rgb(88, 122, 244);</string>
        </property>
        <property name="text">
-        <string>上肢+ssvep范式</string>
+        <string>勾脚+ssvep范式</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_24">
@@ -597,7 +597,7 @@ QPushButton#pushButton_down_mi:pressed { border-image: url(:/main/pic/main_down_
         <string notr="true">color: rgb(88, 122, 244);</string>
        </property>
        <property name="text">
-        <string>上肢+混合范式</string>
+        <string>勾脚+混合范式</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_25">
@@ -619,7 +619,7 @@ QPushButton#pushButton_down_mi:pressed { border-image: url(:/main/pic/main_down_
         <string notr="true">color: rgb(88, 122, 244);</string>
        </property>
        <property name="text">
-        <string>上肢+mi范式</string>
+        <string>勾脚+mi范式</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_27">
@@ -641,7 +641,7 @@ QPushButton#pushButton_down_mi:pressed { border-image: url(:/main/pic/main_down_
         <string notr="true">color: rgb(88, 122, 244);</string>
        </property>
        <property name="text">
-        <string>下肢+ssvep范式</string>
+        <string>抬腿+ssvep范式</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_28">
@@ -663,7 +663,7 @@ QPushButton#pushButton_down_mi:pressed { border-image: url(:/main/pic/main_down_
         <string notr="true">color: rgb(88, 122, 244);</string>
        </property>
        <property name="text">
-        <string>下肢+混合范式</string>
+        <string>抬腿+混合范式</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_29">
@@ -685,7 +685,7 @@ QPushButton#pushButton_down_mi:pressed { border-image: url(:/main/pic/main_down_
         <string notr="true">color: rgb(88, 122, 244);</string>
        </property>
        <property name="text">
-        <string>下肢+mi范式</string>
+        <string>抬腿+mi范式</string>
        </property>
       </widget>
      </widget>
@@ -1306,27 +1306,27 @@ border-radius: 19.43px;</string>
       <widget class="QLabel" name="label_companyname">
        <property name="geometry">
         <rect>
-         <x>500</x>
+         <x>475</x>
          <y>390</y>
-         <width>151</width>
+         <width>181</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>南京华伟医疗设备有限公司</string>
+        <string>南京华伟智脑康联科技有限公司</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_softwarename">
        <property name="geometry">
         <rect>
-         <x>470</x>
-         <y>460</y>
-         <width>201</width>
-         <height>16</height>
+         <x>432</x>
+         <y>457</y>
+         <width>241</width>
+         <height>20</height>
         </rect>
        </property>
        <property name="text">
-        <string>华伟脑机接口--神经肌肉电刺激软件</string>
+        <string>非侵入式脑机接口--下肢康复训练系统软件</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_releaseversion">
@@ -1561,14 +1561,14 @@ border-radius: 19.43px;</string>
       <widget class="QLabel" name="label_41">
        <property name="geometry">
         <rect>
-         <x>870</x>
+         <x>895</x>
          <y>713</y>
-         <width>131</width>
+         <width>101</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>神经肌肉电刺激仪串口</string>
+        <string>下肢康复设备串口</string>
        </property>
       </widget>
       <widget class="QComboBox" name="comboBox_decoder_port">
@@ -1837,7 +1837,7 @@ border-image: url(:/main/pic/main_patient_off.png);</string>
       </size>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tab_3">
       <attribute name="title">

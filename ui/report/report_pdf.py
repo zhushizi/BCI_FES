@@ -62,10 +62,10 @@ def _format_stim_position(position: Any) -> str:
     if position is None or position == "":
         return "—"
     value = str(position).strip()
-    if value == "up":
-        return "上肢"
-    if value == "down":
-        return "下肢"
+    if value == "gou":
+        return "小腿"
+    if value == "tai":
+        return "大腿"
     return value
 
 

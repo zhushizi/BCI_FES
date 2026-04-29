@@ -168,10 +168,10 @@ class TreatRecordTable:
     @staticmethod
     def _map_stim_position(value) -> str:
         text = str(value or "").strip()
-        if text.lower() == "up":
-            return "上肢"
-        if text.lower() == "down":
-            return "下肢"
+        if text.lower() == "gou":
+            return "小腿"
+        if text.lower() == "tai":
+            return "大腿"
         return text
 
     @staticmethod
