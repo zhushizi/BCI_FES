@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from PySide6.QtCore import QEvent, QObject, QTimer
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QRegion
-from PySide6.QtWidgets import QMessageBox, QVBoxLayout
+from PySide6.QtWidgets import QLabel, QMessageBox, QPushButton, QVBoxLayout
 
 from ui.dialogs.tips_dialog import TipsDialog
 from ui.widgets.circle_level_widget import CircleLevelWidget
@@ -27,6 +27,9 @@ class StimTestController:
     _FREQ_MIN_MS = 20
     _FREQ_MAX_MS = 100
     _FREQ_DEFAULT_MS = 20
+    _TIME_MIN_TENTHS = 1
+    _TIME_MAX_TENTHS = 20
+    _TIME_DEFAULT_TENTHS = 12
 
     _STYLE_LEG_SELECTED = (
         "QPushButton { background-color: rgb(219, 233, 247); color: rgb(88, 122, 244); "
@@ -64,6 +67,7 @@ class StimTestController:
         self._current_patient_id: Optional[str] = None
         self._left_circle_widget: Optional[CircleLevelWidget] = None
         self._right_circle_widget: Optional[CircleLevelWidget] = None
+        self._time_scroll_widgets: dict[str, dict[str, object]] = {}
 
     def set_treat_entry_button(self, button_name: Optional[str]) -> None:
         self._treat_entry_button = (button_name or "").strip() or None
@@ -226,6 +230,7 @@ class StimTestController:
         self._init_left_circle_widget()
         self._hide_right_channel_widgets()
         self._update_freq_value_label()
+        self._init_time_scrollbars()
 
     def _on_stim_leg_clicked(self, left: bool) -> None:
         self._switch_active_leg(left=left)
@@ -380,9 +385,14 @@ class StimTestController:
         for name in (
             "comboBox_left_freq",
             "comboBox_left_scheme",
+            "comboBox_pulse_width",
+            "horizontalScrollBar_time_stim",
+            "horizontalScrollBar_time_rise",
+            "horizontalScrollBar_time_down",
         ):
             combo = get_ui_attr(self.ui, name)
             safe_call(self._logger, getattr(combo, "setEnabled", None), enabled)
+        self._set_time_aux_controls_enabled(enabled)
 
         # 档位增减按钮：在线即可点，未开始测试时点击会弹提示
         for btn_name in (
@@ -596,6 +606,177 @@ class StimTestController:
             return
         freq = self._get_freq_value() if value is None else self._normalize_freq_value(value)
         safe_call(self._logger, getattr(label, "setText", None), f"{freq} ms")
+
+    def _init_time_scrollbars(self) -> None:
+        for name in (
+            "horizontalScrollBar_time_stim",
+            "horizontalScrollBar_time_rise",
+            "horizontalScrollBar_time_down",
+        ):
+            scrollbar = get_ui_attr(self.ui, name)
+            if scrollbar is None:
+                continue
+            try:
+                scrollbar.setMinimum(self._TIME_MIN_TENTHS)
+                scrollbar.setMaximum(self._TIME_MAX_TENTHS)
+                scrollbar.setSingleStep(1)
+                scrollbar.setPageStep(1)
+                scrollbar.setValue(self._TIME_DEFAULT_TENTHS)
+                scrollbar.setStyleSheet(self._time_scrollbar_style())
+                safe_connect(
+                    self._logger,
+                    getattr(scrollbar, "valueChanged", None),
+                    lambda value, n=name: self._on_time_scrollbar_changed(n, value),
+                )
+                self._ensure_time_scrollbar_aux_widgets(name)
+                self._update_time_scrollbar_display(name, scrollbar.value())
+            except Exception:
+                self._logger.exception("初始化时间拖条失败: %s", name)
+
+    def _time_scrollbar_style(self) -> str:
+        return """
+QScrollBar:horizontal {
+    background: #EAF1FF;
+    border: none;
+    border-radius: 11px;
+    height: 22px;
+    margin: 0px;
+}
+QScrollBar::sub-page:horizontal {
+    background: #AFC4FF;
+    border-radius: 11px;
+}
+QScrollBar::add-page:horizontal {
+    background: #EAF1FF;
+    border-radius: 11px;
+}
+QScrollBar::handle:horizontal {
+    background: #FFFFFF;
+    border: 4px solid #7DA1FF;
+    border-radius: 11px;
+    min-width: 22px;
+}
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0px;
+    height: 0px;
+}
+"""
+
+    def _ensure_time_scrollbar_aux_widgets(self, name: str) -> None:
+        if name in self._time_scroll_widgets:
+            return
+        scrollbar = get_ui_attr(self.ui, name)
+        parent = scrollbar.parent() if scrollbar is not None else None
+        if scrollbar is None or parent is None:
+            return
+
+        tip = QLabel(parent)
+        tip.setAlignment(Qt.AlignCenter)
+        tip.setStyleSheet(
+            "QLabel { background: #789EFF; color: white; border-radius: 4px; padding: 2px 6px; }"
+        )
+
+        tick_labels: list[QLabel] = []
+        for text in ("0.5s", "1s", "1.5s", "2s"):
+            tick = QLabel(parent)
+            tick.setText(text)
+            tick.setAlignment(Qt.AlignCenter)
+            tick.setStyleSheet("QLabel { color: #333333; font-size: 13px; }")
+            tick_labels.append(tick)
+
+        minus = QPushButton("-", parent)
+        value_label = QLabel(parent)
+        plus = QPushButton("+", parent)
+        for button in (minus, plus):
+            button.setCursor(Qt.PointingHandCursor)
+            button.setStyleSheet(
+                "QPushButton { background: #F7F7F7; color: #789EFF; border: 1px solid #E5E5E5; "
+                "font-size: 20px; } QPushButton:pressed { background: #EEF3FF; }"
+            )
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setStyleSheet(
+            "QLabel { background: #F7F7F7; color: #789EFF; border-top: 1px solid #E5E5E5; "
+            "border-bottom: 1px solid #E5E5E5; font-size: 18px; }"
+        )
+        safe_connect(self._logger, getattr(minus, "clicked", None), lambda _=False, n=name: self._step_time_scrollbar(n, -1))
+        safe_connect(self._logger, getattr(plus, "clicked", None), lambda _=False, n=name: self._step_time_scrollbar(n, 1))
+
+        self._time_scroll_widgets[name] = {
+            "tip": tip,
+            "ticks": tick_labels,
+            "minus": minus,
+            "value": value_label,
+            "plus": plus,
+        }
+        self._layout_time_scrollbar_aux_widgets(name)
+
+    def _layout_time_scrollbar_aux_widgets(self, name: str) -> None:
+        scrollbar = get_ui_attr(self.ui, name)
+        widgets = self._time_scroll_widgets.get(name)
+        if scrollbar is None or not widgets:
+            return
+        geom = scrollbar.geometry()
+        tick_y = geom.y() + geom.height() + 6
+        tick_values = (5, 10, 15, 20)
+        for tick, tick_value in zip(widgets["ticks"], tick_values):
+            x = self._time_value_to_x(geom.x(), geom.width(), tick_value) - 24
+            tick.setGeometry(x, tick_y, 48, 18)
+            tick.show()
+
+        panel_y = geom.y() + geom.height() + 36
+        panel_x = geom.x() + max(0, (geom.width() - 210) // 2)
+        widgets["minus"].setGeometry(panel_x, panel_y, 60, 34)
+        widgets["value"].setGeometry(panel_x + 60, panel_y, 90, 34)
+        widgets["plus"].setGeometry(panel_x + 150, panel_y, 60, 34)
+        for key in ("minus", "value", "plus", "tip"):
+            widgets[key].show()
+
+    def _time_value_to_x(self, left: int, width: int, value: int) -> int:
+        span = max(1, self._TIME_MAX_TENTHS - self._TIME_MIN_TENTHS)
+        ratio = (self._normalize_time_tenths(value) - self._TIME_MIN_TENTHS) / span
+        return int(left + ratio * width)
+
+    def _on_time_scrollbar_changed(self, name: str, value: int) -> None:
+        self._update_time_scrollbar_display(name, value)
+
+    def _step_time_scrollbar(self, name: str, step: int) -> None:
+        scrollbar = get_ui_attr(self.ui, name)
+        if scrollbar is None:
+            return
+        scrollbar.setValue(self._normalize_time_tenths(int(scrollbar.value()) + int(step)))
+
+    def _normalize_time_tenths(self, value: int | None) -> int:
+        if value is None:
+            return self._TIME_DEFAULT_TENTHS
+        return max(self._TIME_MIN_TENTHS, min(self._TIME_MAX_TENTHS, int(value)))
+
+    def _format_time_seconds(self, value: int) -> str:
+        seconds = self._normalize_time_tenths(value) / 10
+        return f"{seconds:g}s"
+
+    def _update_time_scrollbar_display(self, name: str, value: int) -> None:
+        scrollbar = get_ui_attr(self.ui, name)
+        widgets = self._time_scroll_widgets.get(name)
+        if scrollbar is None or not widgets:
+            return
+        value = self._normalize_time_tenths(value)
+        text = self._format_time_seconds(value)
+        widgets["value"].setText(text)
+        widgets["tip"].setText(text)
+
+        geom = scrollbar.geometry()
+        tip_width = 58
+        tip_x = self._time_value_to_x(geom.x(), geom.width(), value) - tip_width // 2
+        tip_x = max(geom.x(), min(geom.x() + geom.width() - tip_width, tip_x))
+        widgets["tip"].setGeometry(tip_x, geom.y() - 34, tip_width, 24)
+        widgets["tip"].raise_()
+
+    def _set_time_aux_controls_enabled(self, enabled: bool) -> None:
+        for widgets in self._time_scroll_widgets.values():
+            for key in ("minus", "plus"):
+                widget = widgets.get(key)
+                safe_call(self._logger, getattr(widget, "setEnabled", None), enabled)
 
     def _extract_patient_id(self, patient: dict | None) -> str | None:
         if not patient:

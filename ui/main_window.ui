@@ -2361,8 +2361,8 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <widget class="QScrollBar" name="horizontalScrollBar_time_stim">
        <property name="geometry">
         <rect>
-         <x>1070</x>
-         <y>300</y>
+         <x>1320</x>
+         <y>280</y>
          <width>160</width>
          <height>16</height>
         </rect>
@@ -2374,7 +2374,7 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <widget class="QScrollBar" name="horizontalScrollBar_time_rise">
        <property name="geometry">
         <rect>
-         <x>1070</x>
+         <x>1320</x>
          <y>410</y>
          <width>160</width>
          <height>16</height>
@@ -2387,8 +2387,8 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <widget class="QScrollBar" name="horizontalScrollBar_time_down">
        <property name="geometry">
         <rect>
-         <x>1090</x>
-         <y>510</y>
+         <x>1320</x>
+         <y>540</y>
          <width>160</width>
          <height>16</height>
         </rect>
@@ -2400,8 +2400,8 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <widget class="QLabel" name="label_2">
        <property name="geometry">
         <rect>
-         <x>1020</x>
-         <y>180</y>
+         <x>980</x>
+         <y>273</y>
          <width>53</width>
          <height>15</height>
         </rect>
@@ -2413,18 +2413,48 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <widget class="QComboBox" name="comboBox_pulse_width">
        <property name="geometry">
         <rect>
-         <x>1100</x>
-         <y>180</y>
-         <width>69</width>
+         <x>1060</x>
+         <y>270</y>
+         <width>90</width>
          <height>22</height>
         </rect>
        </property>
+       <item>
+        <property name="text">
+         <string>50μs</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>100μs</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>150μs</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>200μs</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>250μs</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>300μs</string>
+        </property>
+       </item>
       </widget>
       <widget class="QLabel" name="label_3">
        <property name="geometry">
         <rect>
-         <x>980</x>
-         <y>310</y>
+         <x>1230</x>
+         <y>280</y>
          <width>53</width>
          <height>15</height>
         </rect>
@@ -2436,7 +2466,7 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <widget class="QLabel" name="label_5">
        <property name="geometry">
         <rect>
-         <x>980</x>
+         <x>1230</x>
          <y>410</y>
          <width>53</width>
          <height>15</height>
@@ -2449,8 +2479,8 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <widget class="QLabel" name="label_6">
        <property name="geometry">
         <rect>
-         <x>1000</x>
-         <y>520</y>
+         <x>1230</x>
+         <y>540</y>
          <width>53</width>
          <height>15</height>
         </rect>
