@@ -29,7 +29,15 @@ class StimTestController:
     _FREQ_DEFAULT_MS = 20
     _TIME_MIN_TENTHS = 1
     _TIME_MAX_TENTHS = 20
-    _TIME_DEFAULT_TENTHS = 12
+    _TIME_DEFAULT_TENTHS = 10
+    _TIME_DEFAULT_TENTHS_BY_SCROLLBAR = {
+        "horizontalScrollBar_time_stim": 10,
+        "horizontalScrollBar_time_rise": 5,
+        "horizontalScrollBar_time_down": 5,
+    }
+    _CURRENT_MODE_START = 0xEF
+    _CURRENT_MODE_STOP = 0xFF
+    _CURRENT_MAX_OUTPUT = 0x50
 
     _STYLE_LEG_SELECTED = (
         "QPushButton { background-color: rgb(219, 233, 247); color: rgb(88, 122, 244); "
@@ -226,6 +234,8 @@ class StimTestController:
         safe_connect(self._logger, getattr(left_freq, "currentIndexChanged", None), self._on_left_freq_changed)
         left_scheme = get_ui_attr(self.ui, "comboBox_left_scheme")
         safe_connect(self._logger, getattr(left_scheme, "currentIndexChanged", None), self._on_left_scheme_changed)
+        pulse_width = get_ui_attr(self.ui, "comboBox_pulse_width")
+        safe_connect(self._logger, getattr(pulse_width, "currentIndexChanged", None), self._on_pulse_width_changed)
 
         self._init_left_circle_widget()
         self._hide_right_channel_widgets()
@@ -425,18 +435,16 @@ class StimTestController:
             self._set_left_grade(0)
             # 同步保存（当前患者）
             self._save_current_params()
-            # 下发一次当前参数（保证下位机拿到 current=0）
-            self._send_left_channel_params(current_value=0)
-
-            if self.stim_app:
-                self.stim_app.start_treatment_channel(self._selected_leg_channel())
+            # 开始测试：先发基础参数帧，再发高级参数帧；第7位使用 0xEF 表示开始电流模式。
+            self._send_basic_params()
+            self._send_advanced_params(current_value=self._CURRENT_MODE_START)
         finally:
             self._set_running_state(running=True)
 
     def _on_stop_test_clicked(self) -> None:
         try:
-            if self.stim_app:
-                self.stim_app.stop_treatment_channel(self._selected_leg_channel())
+            # 停止测试：发送高级参数帧；第7位使用 0xFF 表示结束当前模式。
+            self._send_advanced_params(current_value=self._CURRENT_MODE_STOP)
         finally:
             self._set_running_state(running=False)
 
@@ -446,7 +454,7 @@ class StimTestController:
     def _stop_treatment_safe(self) -> None:
         try:
             if self.stim_app:
-                self.stim_app.stop_treatment_channel(self._selected_leg_channel())
+                self._send_advanced_params(current_value=self._CURRENT_MODE_STOP)
         except Exception:
             self._logger.exception("停止治疗失败")
 
@@ -476,7 +484,7 @@ class StimTestController:
         label = get_ui_attr(self.ui, "label_left_grade")
         if label is None:
             return
-        grade = max(0, min(99, grade))
+        grade = max(0, min(self._CURRENT_MAX_OUTPUT, grade))
         safe_call(self._logger, getattr(label, "setText", None), f"{grade}级")
         if self._left_circle_widget is not None:
             self._left_circle_widget.set_level(grade)
@@ -484,15 +492,68 @@ class StimTestController:
     def _send_left_channel_params(self, current_value: int) -> None:
         if not self.stim_app:
             return
-        channel = self._selected_leg_channel()
-        scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
-        scheme = 1 if scheme_idx <= 0 else 2
-        frequency = self._get_freq_value()
-        current = max(0, min(0x99, int(current_value)))
         try:
-            self.stim_app.set_params(scheme=scheme, frequency=frequency, current=current, channel=channel)
+            self._send_basic_params()
+            self._send_advanced_params(current_value=current_value)
         except Exception:
-            self._logger.exception("下发%s通道参数失败", channel)
+            self._logger.exception("下发%s参数失败", self._selected_leg_channel())
+
+    def _send_basic_params(self) -> None:
+        if not self.stim_app:
+            return
+        self.stim_app.send_basic_params(
+            device=self._get_stim_device_code(),
+            waveform=self._get_waveform_value(),
+            pulse_width=self._get_pulse_width_value(),
+            frequency=self._get_freq_value(),
+        )
+
+    def _send_advanced_params(self, current_value: int) -> None:
+        if not self.stim_app:
+            return
+        self.stim_app.send_advanced_params(
+            device=self._get_stim_device_code(),
+            current=self._normalize_current_value(current_value),
+            stim_time=self._get_time_scrollbar_value("horizontalScrollBar_time_stim"),
+            rise_time=self._get_time_scrollbar_value("horizontalScrollBar_time_rise"),
+            down_time=self._get_time_scrollbar_value("horizontalScrollBar_time_down"),
+        )
+
+    def _get_stim_device_code(self) -> int:
+        if self.stim_app:
+            return self.stim_app.device_code_for(self._selected_leg_channel(), self._stim_leg_part_label())
+        return 0xEB
+
+    def _get_waveform_value(self) -> int:
+        scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
+        return 1 if scheme_idx <= 0 else 2
+
+    def _get_pulse_width_value(self) -> int:
+        combo = get_ui_attr(self.ui, "comboBox_pulse_width")
+        if combo is None:
+            return 1
+        try:
+            # 下拉项按 50us、100us... 顺序对应协议值 0x01、0x02...
+            return max(1, min(0xFF, int(combo.currentIndex()) + 1))
+        except Exception:
+            self._logger.exception("读取脉冲宽度失败")
+            return 1
+
+    def _get_time_scrollbar_value(self, name: str) -> int:
+        scrollbar = get_ui_attr(self.ui, name)
+        if scrollbar is None:
+            return self._default_time_tenths(name)
+        try:
+            return self._normalize_time_tenths(int(scrollbar.value()))
+        except Exception:
+            self._logger.exception("读取时间拖条失败: %s", name)
+            return self._default_time_tenths(name)
+
+    def _normalize_current_value(self, value: int) -> int:
+        current = int(value)
+        if current in (self._CURRENT_MODE_START, self._CURRENT_MODE_STOP):
+            return current
+        return max(0, min(self._CURRENT_MAX_OUTPUT, current))
 
     # ----------------- UI 事件：频率/方案/按钮 -----------------
     def _on_left_freq_value_changed(self, value: int) -> None:
@@ -512,6 +573,10 @@ class StimTestController:
         self._send_left_channel_params(current_value=current_grade)
         self._save_current_params()
 
+    def _on_pulse_width_changed(self, index: int) -> None:
+        current_grade = self._get_left_grade()
+        self._send_left_channel_params(current_value=current_grade)
+
     def _on_left_grade_increase(self) -> None:
         if not self._test_running:
             TipsDialog.show_tips(self.ui, "请先点击“开始测试”按钮")
@@ -519,7 +584,7 @@ class StimTestController:
         current_grade = self._get_left_grade()
         new_grade = current_grade + 1
         self._set_left_grade(new_grade)
-        self._send_left_channel_params(current_value=new_grade)
+        self._send_advanced_params(current_value=self._get_left_grade())
         self._save_current_params()
 
     def _on_left_grade_decrease(self) -> None:
@@ -529,7 +594,7 @@ class StimTestController:
         current_grade = self._get_left_grade()
         new_grade = current_grade - 1
         self._set_left_grade(new_grade)
-        self._send_left_channel_params(current_value=new_grade)
+        self._send_advanced_params(current_value=self._get_left_grade())
         self._save_current_params()
 
     # ----------------- 缓存：患者绑定 -----------------
@@ -621,7 +686,7 @@ class StimTestController:
                 scrollbar.setMaximum(self._TIME_MAX_TENTHS)
                 scrollbar.setSingleStep(1)
                 scrollbar.setPageStep(1)
-                scrollbar.setValue(self._TIME_DEFAULT_TENTHS)
+                scrollbar.setValue(self._default_time_tenths(name))
                 scrollbar.setStyleSheet(self._time_scrollbar_style())
                 safe_connect(
                     self._logger,
@@ -745,6 +810,9 @@ QScrollBar::sub-line:horizontal {
         if scrollbar is None:
             return
         scrollbar.setValue(self._normalize_time_tenths(int(scrollbar.value()) + int(step)))
+
+    def _default_time_tenths(self, name: str) -> int:
+        return self._normalize_time_tenths(self._TIME_DEFAULT_TENTHS_BY_SCROLLBAR.get(name, self._TIME_DEFAULT_TENTHS))
 
     def _normalize_time_tenths(self, value: int | None) -> int:
         if value is None:

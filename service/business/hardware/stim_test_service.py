@@ -38,21 +38,25 @@ class StimTestService:
     FRAME_HEADER = StimFrame.FRAME_HEADER
     FRAME_LENGTH = StimFrame.FRAME_LENGTH
     RESERVED_BYTE = StimFrame.RESERVED_BYTE
-    RESERVED_LEFT = StimFrame.RESERVED_LEFT
-    RESERVED_RIGHT = StimFrame.RESERVED_RIGHT
     FRAME_DATA_SIZE = StimFrame.FRAME_DATA_SIZE
 
-    # 帧类型
-    FRAME_TYPE_COMMAND = StimFrame.FRAME_TYPE_COMMAND
-    FRAME_TYPE_DATA = StimFrame.FRAME_TYPE_DATA
+    DEVICE_LEFT_THIGH = StimFrame.DEVICE_LEFT_THIGH
+    DEVICE_LEFT_CALF = StimFrame.DEVICE_LEFT_CALF
+    DEVICE_RIGHT_THIGH = StimFrame.DEVICE_RIGHT_THIGH
+    DEVICE_RIGHT_CALF = StimFrame.DEVICE_RIGHT_CALF
 
-    # 命令类型
-    CMD_START_TREATMENT = 0x01  # 开始治疗
-    CMD_STOP_TREATMENT = 0x10   # 停止治疗
-
-    # 方案类型
-    SCHEME_ONE = 0x01  # 方案一
-    SCHEME_TWO = 0x02  # 方案二
+    FRAME_TYPE_BASIC = StimFrame.FRAME_TYPE_BASIC
+    FRAME_TYPE_ADVANCED = StimFrame.FRAME_TYPE_ADVANCED
+    WAVEFORM_SYMMETRIC = StimFrame.WAVEFORM_SYMMETRIC
+    WAVEFORM_ASYMMETRIC = StimFrame.WAVEFORM_ASYMMETRIC
+    CURRENT_MODE_START = StimFrame.CURRENT_MODE_START
+    CURRENT_MODE_STOP = StimFrame.CURRENT_MODE_STOP
+    CURRENT_MAX_OUTPUT = 0x50
+    DEFAULT_PULSE_WIDTH = 1
+    DEFAULT_FREQUENCY = 20
+    DEFAULT_STIM_TIME = 10
+    DEFAULT_RISE_TIME = 5
+    DEFAULT_DOWN_TIME = 5
 
     def __init__(self, serial_hardware: SerialHardware):
         self.serial_hw = serial_hardware
@@ -90,45 +94,49 @@ class StimTestService:
 
     # --------- 兼容接口（原 HardwareTreatmentService） ---------
     def start_treatment(self) -> bool:
-        """开始治疗（发送命令帧）"""
-        return self._send_command(self.CMD_START_TREATMENT, desc="开始治疗命令")
+        """开始治疗（发送高级参数帧，默认左小腿）"""
+        return self.start_treatment_channel("left")
 
     def start_treatment_channel(self, channel: str) -> bool:
         """
-        按通道发送开始治疗命令帧，保留位区分左右通道
-        channel: 'left' 使用 0x0A，'right' 使用 0x0B，其他默认 0x00
+        按通道发送开始治疗高级参数帧。
+        旧接口无法得知大小腿和 UI 时间，默认按小腿及默认时间发送。
         """
-        reserved = self._channel_reserved(channel)
-        return self._send_command(
-            self.CMD_START_TREATMENT,
-            reserved_byte=reserved,
-            desc=f"开始治疗命令 channel={channel}, reserved=0x{reserved:02X}",
+        device = self.device_code_for(channel, "小腿")
+        return self.send_advanced_params(
+            device=device,
+            current=self.CURRENT_MODE_START,
+            stim_time=self.DEFAULT_STIM_TIME,
+            rise_time=self.DEFAULT_RISE_TIME,
+            down_time=self.DEFAULT_DOWN_TIME,
         )
 
     def start_treatment_dual(self) -> bool:
-        """左右通道各发送一次开始治疗命令帧"""
+        """左右通道各发送一次开始治疗高级参数帧"""
         left_ok = self.start_treatment_channel("left")
         right_ok = self.start_treatment_channel("right")
         return left_ok and right_ok
 
     def stop_treatment(self) -> bool:
-        """停止治疗（发送命令帧）"""
-        return self._send_command(self.CMD_STOP_TREATMENT, desc="停止治疗命令")
+        """停止治疗（发送高级参数帧，默认左小腿）"""
+        return self.stop_treatment_channel("left")
 
     def stop_treatment_channel(self, channel: str) -> bool:
         """
-        按通道发送停止治疗命令帧，保留位区分左右通道
-        channel: 'left' 使用 0x0A，'right' 使用 0x0B，其他默认 0x00
+        按通道发送停止治疗高级参数帧。
+        旧接口无法得知大小腿和 UI 时间，默认按小腿及默认时间发送。
         """
-        reserved = self._channel_reserved(channel)
-        return self._send_command(
-            self.CMD_STOP_TREATMENT,
-            reserved_byte=reserved,
-            desc=f"停止治疗命令 channel={channel}, reserved=0x{reserved:02X}",
+        device = self.device_code_for(channel, "小腿")
+        return self.send_advanced_params(
+            device=device,
+            current=self.CURRENT_MODE_STOP,
+            stim_time=self.DEFAULT_STIM_TIME,
+            rise_time=self.DEFAULT_RISE_TIME,
+            down_time=self.DEFAULT_DOWN_TIME,
         )
 
     def stop_treatment_dual(self) -> bool:
-        """左右通道各发送一次停止治疗命令帧"""
+        """左右通道各发送一次停止治疗高级参数帧"""
         left_ok = self.stop_treatment_channel("left")
         right_ok = self.stop_treatment_channel("right")
         return left_ok and right_ok
@@ -142,29 +150,67 @@ class StimTestService:
         time_byte: Optional[int] = None,
     ) -> bool:
         """
-        设置治疗参数（发送数据帧）
+        设置治疗参数（兼容旧接口：发送基础参数帧 + 高级参数帧）
 
-        scheme: 1/2
-        frequency: 20~100，单位 ms，写入数据帧频率字段时按单字节值发送（0x14~0x64）
-        current: 0~0x99
+        scheme: 1/2，对应新协议波形 0x01/0x02
+        frequency/current/time_byte 直接按单字节参数下发
         """
-        # 参数验证
-        if scheme not in [self.SCHEME_ONE, self.SCHEME_TWO]:
-            raise ValueError(f"方案参数无效: {scheme}，应为 {self.SCHEME_ONE} 或 {self.SCHEME_TWO}")
-        if not (20 <= frequency <= 100):
-            raise ValueError(f"频率参数无效: {frequency}，应为 20~100ms")
-        if not (0 <= current <= 0x99):
-            raise ValueError(f"电流无效: {current}，应为 0~153 (0x00~0x99)")
-
-        reserved = self._channel_reserved(channel) if channel else self.RESERVED_BYTE
-        time_desc = f", time=0x{int(time_byte):02X}" if time_byte is not None else ""
-        return self._send_data(
-            scheme=scheme,
+        device = self.device_code_for(channel or "left", "小腿")
+        stim_time = self.DEFAULT_STIM_TIME if time_byte is None else int(time_byte)
+        basic_ok = self.send_basic_params(
+            device=device,
+            waveform=scheme,
+            pulse_width=self.DEFAULT_PULSE_WIDTH,
             frequency=frequency,
+        )
+        advanced_ok = self.send_advanced_params(
+            device=device,
             current=current,
-            reserved_byte=reserved,
-            time_byte=time_byte,
-            desc=f"治疗参数 方案={scheme}, 频率={frequency}ms(0x{frequency:02X}), 电流={current}, reserved=0x{reserved:02X}{time_desc}",
+            stim_time=stim_time,
+            rise_time=self.DEFAULT_RISE_TIME,
+            down_time=self.DEFAULT_DOWN_TIME,
+        )
+        return basic_ok and advanced_ok
+
+    def send_basic_params(self, device: int, waveform: int, pulse_width: int, frequency: int) -> bool:
+        self._validate_device(device)
+        waveform = self._normalize_waveform(waveform)
+        pulse_width = self._normalize_byte(pulse_width, "脉冲宽度")
+        frequency = self._normalize_byte(frequency, "频率")
+        return self._send_basic(
+            device=device,
+            waveform=waveform,
+            pulse_width=pulse_width,
+            frequency=frequency,
+            desc=(
+                f"基础参数 device=0x{device:02X}, waveform=0x{waveform:02X}, "
+                f"pulse_width={pulse_width}, frequency={frequency}"
+            ),
+        )
+
+    def send_advanced_params(
+        self,
+        device: int,
+        current: int,
+        stim_time: int,
+        rise_time: int,
+        down_time: int,
+    ) -> bool:
+        self._validate_device(device)
+        current = self._normalize_current(current)
+        stim_time = self._normalize_byte(stim_time, "刺激时间")
+        rise_time = self._normalize_byte(rise_time, "上升时间")
+        down_time = self._normalize_byte(down_time, "下降时间")
+        return self._send_advanced(
+            device=device,
+            current=current,
+            stim_time=stim_time,
+            rise_time=rise_time,
+            down_time=down_time,
+            desc=(
+                f"高级参数 device=0x{device:02X}, current=0x{current:02X}, "
+                f"stim_time={stim_time}, rise_time={rise_time}, down_time={down_time}"
+            ),
         )
 
     def start_dual(self) -> bool:
@@ -193,45 +239,72 @@ class StimTestService:
         )
 
     # ------------------ 协议构帧 ------------------
-    def _build_command_frame(self, command: int, reserved_byte: int = None) -> bytes:
+    def _build_basic_frame(self, device: int, waveform: int, pulse_width: int, frequency: int) -> bytes:
         """
-        帧格式：
-        [帧头(2)] [长度(1)] [保留(1)] [帧类型(1)] [命令(1)] [保留(5)] [校验和(2)]
+        基础参数帧：
+        [55 AA] [0D] [设备位置] [0x01] [波形] [波宽] [频率] [保留3字节] [校验2字节]
         """
-        rb = self.RESERVED_BYTE if reserved_byte is None else reserved_byte
-        return StimFrame.build_command(command, rb)
-
-    def _build_data_frame(
-        self,
-        scheme: int,
-        frequency: int,
-        current: int,
-        reserved_byte: int = None,
-        time_byte: Optional[int] = None,
-    ) -> bytes:
-        """
-        帧格式：
-        [帧头(2)] [长度(1)] [保留(1)] [帧类型(1)] [方案(1)] [频率(1)] [电流(1)] [时间(1)] [保留(2)] [校验和(2)]
-        """
-        rb = self.RESERVED_BYTE if reserved_byte is None else reserved_byte
-        return StimFrame.build_data(
-            scheme=scheme,
+        return StimFrame.build_basic_params(
+            device=device,
+            waveform=waveform,
+            pulse_width=pulse_width,
             frequency=frequency,
-            current=current,
-            reserved_byte=rb,
-            time_byte=time_byte,
         )
 
-    def _channel_reserved(self, channel: Optional[str]) -> int:
+    def _build_advanced_frame(self, device: int, current: int, stim_time: int, rise_time: int, down_time: int) -> bytes:
+        """
+        高级参数帧：
+        [55 AA] [0D] [设备位置] [0x02] [治疗模式] [电流/启停模式] [刺激时间] [保留] [上升时间] [下降时间] [校验2字节]
+        """
+        return StimFrame.build_advanced_params(
+            device=device,
+            current=current,
+            stim_time=stim_time,
+            rise_time=rise_time,
+            down_time=down_time,
+        )
+
+    @classmethod
+    def device_code_for(cls, channel: Optional[str], leg_part: Optional[str]) -> int:
         ch = _Channel.from_value(channel)
-        if ch is _Channel.LEFT:
-            return self.RESERVED_LEFT
+        part = str(leg_part or "").strip().lower()
+        is_thigh = "大腿" in part or "tai" in part or "thigh" in part
         if ch is _Channel.RIGHT:
-            return self.RESERVED_RIGHT
-        return self.RESERVED_BYTE
+            return cls.DEVICE_RIGHT_THIGH if is_thigh else cls.DEVICE_RIGHT_CALF
+        return cls.DEVICE_LEFT_THIGH if is_thigh else cls.DEVICE_LEFT_CALF
 
     def _calculate_checksum(self, data: bytearray) -> bytes:
         return StimFrame._calculate_checksum(data)
+
+    def _validate_device(self, device: int) -> None:
+        valid = {
+            self.DEVICE_LEFT_THIGH,
+            self.DEVICE_LEFT_CALF,
+            self.DEVICE_RIGHT_THIGH,
+            self.DEVICE_RIGHT_CALF,
+        }
+        if int(device) not in valid:
+            raise ValueError(f"设备位置无效: 0x{int(device):02X}")
+
+    def _normalize_waveform(self, value: int) -> int:
+        waveform = int(value)
+        if waveform in (self.WAVEFORM_SYMMETRIC, self.WAVEFORM_ASYMMETRIC):
+            return waveform
+        raise ValueError(
+            f"波形参数无效: {value}，应为 0x{self.WAVEFORM_SYMMETRIC:02X} 或 0x{self.WAVEFORM_ASYMMETRIC:02X}"
+        )
+
+    def _normalize_byte(self, value: int, name: str) -> int:
+        ivalue = int(value)
+        if not (0 <= ivalue <= 0xFF):
+            raise ValueError(f"{name}参数无效: {value}，应为 0~255")
+        return ivalue
+
+    def _normalize_current(self, value: int) -> int:
+        current = int(value)
+        if current in (self.CURRENT_MODE_START, self.CURRENT_MODE_STOP):
+            return current
+        return max(0, min(self.CURRENT_MAX_OUTPUT, current))
 
     # ------------------ 内部工具 ------------------
     def _log_send(self, packet: bytes, success: bool, desc: str = "") -> None:
@@ -244,28 +317,41 @@ class StimTestService:
         else:
             self.logger.info(f"[发送{status}] data={hex_str}")
 
-    def _send_command(self, command: int, reserved_byte: int = None, desc: str = "") -> bool:
-        packet = self._build_command_frame(command, reserved_byte=reserved_byte)
+    def _send_basic(
+        self,
+        *,
+        device: int,
+        waveform: int,
+        pulse_width: int,
+        frequency: int,
+        desc: str,
+    ) -> bool:
+        packet = self._build_basic_frame(
+            device=device,
+            waveform=waveform,
+            pulse_width=pulse_width,
+            frequency=frequency,
+        )
         success = self.serial_hw.send_data(packet)
         self._log_send(packet, success, desc=desc)
         return success
 
-    def _send_data(
+    def _send_advanced(
         self,
         *,
-        scheme: int,
-        frequency: int,
+        device: int,
         current: int,
-        reserved_byte: int,
-        time_byte: Optional[int],
+        stim_time: int,
+        rise_time: int,
+        down_time: int,
         desc: str,
     ) -> bool:
-        packet = self._build_data_frame(
-            scheme,
-            frequency,
-            current,
-            reserved_byte=reserved_byte,
-            time_byte=time_byte,
+        packet = self._build_advanced_frame(
+            device=device,
+            current=current,
+            stim_time=stim_time,
+            rise_time=rise_time,
+            down_time=down_time,
         )
         success = self.serial_hw.send_data(packet)
         self._log_send(packet, success, desc=desc)
