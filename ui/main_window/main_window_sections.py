@@ -336,6 +336,8 @@ class MainWindowTreatFlow:
             return
         if getattr(self._host, "treat_flow_app", None) and button_name:
             self._host.treat_flow_app.start_treat_from_button(self._host._selected_patient, button_name)
+        if hasattr(self._host.treat_controller, "set_treat_entry_button"):
+            self._host.treat_controller.set_treat_entry_button(button_name)
         self._host.treat_controller.set_current_patient(self._host._selected_patient)
         self._host.treat_controller.enter_preprocess_page()
 

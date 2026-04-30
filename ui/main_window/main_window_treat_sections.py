@@ -91,28 +91,18 @@ class TreatNavigation:
         self.update_preprocess_title("preprocess_eletitle.png")
         self._host.stim_ctrl.on_enter()
 
-    def _get_grade_from_label(self, name: str) -> int:
-        label = get_ui_attr(self.ui, name)
-        if label is None:
-            return 0
-        try:
-            grade_str = (label.text() or "").replace("级", "").strip()
-            return int(grade_str) if grade_str else 0
-        except (ValueError, AttributeError):
-            return 0
-
     def on_preprocess_next(self) -> None:
         sub_tab = get_ui_attr(self.ui, "tabWidget_2")
         if sub_tab and sub_tab.currentIndex() == 0:
-            left_grade = self._get_grade_from_label("label_left_grade")
-            right_grade = self._get_grade_from_label("label_right_grade")
-            if left_grade == 0 or right_grade == 0:
-                TipsDialog.show_tips(self.ui, "请进行电刺激强度测试")
+            if self._host.stim_ctrl.handle_dual_leg_next_click():
+                return
+            if not self._host.stim_ctrl.stim_grades_satisfied_for_next():
                 return
         if not self._host.stim_ctrl.ensure_stopped_before_next():
             return
         if sub_tab:
             sub_tab.setCurrentIndex(1)
+        self._host.stim_ctrl.on_completed_leave_stim_tab()
         self.update_preprocess_title("preprocess_bciImpeTitle.png")
         self._host.impedance_ctrl.on_enter()
 
@@ -136,6 +126,7 @@ class TreatNavigation:
                 self._host._ws_bridge.close_impedance_mode()
                 sub_tab.setCurrentIndex(0)
                 self.update_preprocess_title("preprocess_eletitle.png")
+                self._host.stim_ctrl.refresh_stim_leg_bar()
                 return
 
         if not self._host._session_guard.confirm_exit_if_session_active():

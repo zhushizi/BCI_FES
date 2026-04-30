@@ -22,11 +22,27 @@ class StimTestController:
     让上层只负责导航与页面编排。
     """
 
+    _NEXT_CONFIRM = "确认"
+    _NEXT_ITEM = "下一项"
+
+    _STYLE_LEG_SELECTED = (
+        "QPushButton { background-color: rgb(219, 233, 247); color: rgb(88, 122, 244); "
+        "border: 2px solid rgb(88, 122, 244); border-radius: 10px; }"
+    )
+    _STYLE_LEG_NORMAL = (
+        "QPushButton { background-color: rgb(240, 242, 245); color: rgb(120, 120, 120); "
+        "border: 1px solid rgb(200, 200, 200); border-radius: 10px; }"
+    )
+
     def __init__(self, ui, session_app: Optional[SessionApp] = None, stim_app: Optional[StimTestApp] = None):
         self.ui = ui
         self.session_app = session_app
         self.stim_app = stim_app
         self._logger = logging.getLogger(__name__)
+        self._treat_entry_button: Optional[str] = None
+        self._current_patient_for_leg: dict | None = None
+        # 双腿 + 勾脚范式：0=当前强调左腿阶段，1=强调右腿阶段（第二次点「确认」才离开本页）
+        self._dual_leg_flow_step: int = 0
 
         # 控件联动保护：避免左右下拉框互相设置时触发递归回调
         self._is_syncing_scheme_freq = False
@@ -51,11 +67,156 @@ class StimTestController:
         self._left_circle_widget: Optional[CircleLevelWidget] = None
         self._right_circle_widget: Optional[CircleLevelWidget] = None
 
+    def set_treat_entry_button(self, button_name: Optional[str]) -> None:
+        self._treat_entry_button = (button_name or "").strip() or None
+
+    @staticmethod
+    def _patient_is_both_legs(patient: dict | None) -> bool:
+        if not patient:
+            return False
+        leg = str(patient.get("Leg") or "").strip()
+        return leg == "双腿"
+
+    def _stim_leg_part_label(self) -> str:
+        """范式按钮名含 gou→小腿，含 tai→大腿；默认小腿。"""
+        n = (self._treat_entry_button or "").lower()
+        if "tai" in n:
+            return "大腿"
+        if "gou" in n:
+            return "小腿"
+        return "小腿"
+
+    def _patient_leg_display_mode(self) -> str:
+        """双腿：both；仅左腿/右腿：只展示单侧。"""
+        p = self._current_patient_for_leg
+        if not p:
+            return "both"
+        leg = str(p.get("Leg") or "").strip()
+        if leg == "左腿":
+            return "left"
+        if leg == "右腿":
+            return "right"
+        return "both"
+
+    def _bilateral_two_step_enabled(self) -> bool:
+        """患腿为「双腿」时：底部「确认」→「下一项」两步后才离开电刺激页。"""
+        return self._patient_is_both_legs(self._current_patient_for_leg)
+
+    def refresh_stim_leg_bar(self) -> None:
+        """刺激位置栏始终展示；文案随范式 gou/tai；单侧只显示对应腿。"""
+        bar = get_ui_attr(self.ui, "widget_stim_leg_bar")
+        safe_call(self._logger, getattr(bar, "setVisible", None), True)
+        part = self._stim_leg_part_label()
+        btn_l = get_ui_attr(self.ui, "pushButton_stim_leg_left")
+        btn_r = get_ui_attr(self.ui, "pushButton_stim_leg_right")
+        if btn_l:
+            safe_call(self._logger, getattr(btn_l, "setText", None), f"左腿（{part}）")
+        if btn_r:
+            safe_call(self._logger, getattr(btn_r, "setText", None), f"右腿（{part}）")
+        mode = self._patient_leg_display_mode()
+        if btn_l:
+            safe_call(self._logger, getattr(btn_l, "setVisible", None), mode in ("both", "left"))
+        if btn_r:
+            safe_call(self._logger, getattr(btn_r, "setVisible", None), mode in ("both", "right"))
+        if mode == "left":
+            self._dual_leg_flow_step = 0
+            self._set_leg_highlight(left_selected=True)
+            self._set_preprocess_next_button_text(self._NEXT_ITEM)
+        elif mode == "right":
+            self._dual_leg_flow_step = 0
+            self._set_leg_highlight(left_selected=False)
+            self._set_preprocess_next_button_text(self._NEXT_ITEM)
+        else:
+            self.reset_dual_leg_flow()
+
+    def reset_dual_leg_flow(self) -> None:
+        """双腿：两步流程复位为左腿高亮、「确认」。单侧患者不调用有效分支。"""
+        if not self._bilateral_two_step_enabled():
+            return
+        self._dual_leg_flow_step = 0
+        self._set_leg_highlight(left_selected=True)
+        self._set_preprocess_next_button_text(self._NEXT_CONFIRM)
+
+    def on_completed_leave_stim_tab(self) -> None:
+        """离开电刺激子页进入阻抗页后：恢复底部「确认」文案（与双腿两步流程无关者也安全）。"""
+        self._dual_leg_flow_step = 0
+        self._set_preprocess_next_button_text(self._NEXT_CONFIRM)
+
+    def _set_preprocess_next_button_text(self, text: str) -> None:
+        btn = get_ui_attr(self.ui, "pushButton_next")
+        safe_call(self._logger, getattr(btn, "setText", None), text)
+
+    def _set_leg_highlight(self, left_selected: bool) -> None:
+        btn_l = get_ui_attr(self.ui, "pushButton_stim_leg_left")
+        btn_r = get_ui_attr(self.ui, "pushButton_stim_leg_right")
+        mode = self._patient_leg_display_mode()
+        if mode == "left":
+            if btn_l:
+                safe_call(self._logger, getattr(btn_l, "setChecked", None), True)
+                safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_SELECTED)
+            return
+        if mode == "right":
+            if btn_r:
+                safe_call(self._logger, getattr(btn_r, "setChecked", None), True)
+                safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_SELECTED)
+            return
+        if btn_l:
+            safe_call(self._logger, getattr(btn_l, "setChecked", None), left_selected)
+            safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_SELECTED if left_selected else self._STYLE_LEG_NORMAL)
+        if btn_r:
+            safe_call(self._logger, getattr(btn_r, "setChecked", None), not left_selected)
+            safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_NORMAL if left_selected else self._STYLE_LEG_SELECTED)
+
+    def handle_dual_leg_next_click(self) -> bool:
+        """
+        双腿：第一次点「确认」仅切到右腿高亮并改「下一项」；第二次再离开本 tab。
+        患腿为单腿时始终返回 False（由「下一项」一次离开）。
+        """
+        if not self._bilateral_two_step_enabled():
+            return False
+        if not self.ensure_stopped_before_next():
+            return True
+        if self._dual_leg_flow_step == 0:
+            if self._get_left_grade() <= 0:
+                part = self._stim_leg_part_label()
+                TipsDialog.show_tips(self.ui, f"请先完成左腿（{part}）侧电刺激强度测试")
+                return True
+            self._dual_leg_flow_step = 1
+            self._set_leg_highlight(left_selected=False)
+            self._set_preprocess_next_button_text(self._NEXT_ITEM)
+            return True
+        return False
+
+    def stim_grades_satisfied_for_next(self) -> bool:
+        """离开电刺激页前：按患腿要求检查已测档位。"""
+        mode = self._patient_leg_display_mode()
+        part = self._stim_leg_part_label()
+        if mode == "left":
+            if self._get_left_grade() <= 0:
+                TipsDialog.show_tips(self.ui, f"请完成左腿（{part}）侧电刺激强度测试")
+                return False
+            return True
+        if mode == "right":
+            if self._get_right_grade() <= 0:
+                TipsDialog.show_tips(self.ui, f"请完成右腿（{part}）侧电刺激强度测试")
+                return False
+            return True
+        if self._get_left_grade() <= 0 or self._get_right_grade() <= 0:
+            TipsDialog.show_tips(self.ui, "请进行电刺激强度测试")
+            return False
+        return True
+
     @property
     def is_test_running(self) -> bool:
         return bool(self._test_running)
 
     def bind_signals(self) -> None:
+        leg_l = get_ui_attr(self.ui, "pushButton_stim_leg_left")
+        leg_r = get_ui_attr(self.ui, "pushButton_stim_leg_right")
+        if leg_l is not None and leg_r is not None:
+            safe_connect(self._logger, getattr(leg_l, "clicked", None), lambda: self._on_stim_leg_clicked(True))
+            safe_connect(self._logger, getattr(leg_r, "clicked", None), lambda: self._on_stim_leg_clicked(False))
+
         # 开始/停止合并到同一按钮：点击切换
         start_btn = get_ui_attr(self.ui, "pushButton_start_test")
         safe_connect(self._logger, getattr(start_btn, "clicked", None), self._on_start_stop_test_clicked)
@@ -89,6 +250,11 @@ class StimTestController:
 
         self._init_left_circle_widget()
         self._init_right_circle_widget()
+
+    def _on_stim_leg_clicked(self, left: bool) -> None:
+        if not self._bilateral_two_step_enabled():
+            return
+        self._set_leg_highlight(left_selected=left)
 
     def _init_left_circle_widget(self) -> None:
         """在 widget_circle_level_left 中放入只读圆环，与 label_left_grade 联动，并裁剪为圆形区域。"""
@@ -139,6 +305,7 @@ class StimTestController:
 
     def set_current_patient(self, patient: dict | None) -> None:
         """设置当前患者并恢复缓存参数（患者绑定）。"""
+        self._current_patient_for_leg = patient
         self._current_patient_id = self._extract_patient_id(patient)
         if self.session_app:
             try:
@@ -149,11 +316,13 @@ class StimTestController:
             except Exception:
                 self._logger.exception("设置当前患者失败")
         self._apply_cached_params()
+        self.refresh_stim_leg_bar()
 
     def on_enter(self) -> None:
         """进入电刺激页：强制回到停止态。"""
         self._apply_cached_params()
         self._set_running_state(running=False)
+        self.refresh_stim_leg_bar()
 
     def on_exit(self) -> None:
         """离开电刺激页：保存当前档位并停止。"""

@@ -84,6 +84,7 @@ class TreatPageController:
         )
 
         self._current_patient: dict | None = None
+        self._treat_entry_button: str | None = None
 
     # ---------- 对外接口 ----------
     def bind_signals(self) -> None:
@@ -101,12 +102,20 @@ class TreatPageController:
         """进入预处理主页面并重置子页状态"""
         self._nav.enter_preprocess_page()
 
+    def set_treat_entry_button(self, button_name: str | None) -> None:
+        """记录主页进入治疗时点击的范式按钮名（用于双腿+gou 等流程）。"""
+        self._treat_entry_button = (button_name or "").strip() or None
+        try:
+            self.stim_ctrl.set_treat_entry_button(self._treat_entry_button)
+        except Exception:
+            pass
+
     def set_current_patient(self, patient: dict | None) -> None:
         """设置当前患者并恢复缓存的左右通道档位/训练参数等（患者绑定）"""
         self._current_patient = patient
         pid = self._extract_patient_id(patient)
 
-        # 统一把 patient_id 往下传
+        # 统一把 patient_id 往下传（范式入口按钮已在 open_treat_page 中设置）
         self.stim_ctrl.set_current_patient(patient)
         self.impedance_ctrl.set_current_patient(pid)
         self.training_main_ctrl.set_current_patient(pid)
