@@ -428,7 +428,7 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-       <string notr="true">QPushButton#pushButton_gou_ssvep { background-color: #DBE9F7; border-radius: 42px;
+        <string notr="true">QPushButton#pushButton_gou_ssvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_up_ssvep.png); }
 QPushButton#pushButton_gou_ssvep:pressed { border-image: url(:/main/pic/main_up_click_ssvep.png); }</string>
        </property>
@@ -452,7 +452,7 @@ QPushButton#pushButton_gou_ssvep:pressed { border-image: url(:/main/pic/main_up_
         </font>
        </property>
        <property name="styleSheet">
-       <string notr="true">QPushButton#pushButton_gou_ssmvep { background-color: #DBE9F7; border-radius: 42px;
+        <string notr="true">QPushButton#pushButton_gou_ssmvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_up_ssmvep.png); }
 QPushButton#pushButton_gou_ssmvep:pressed { border-image: url(:/main/pic/main_up_click_ssmvep.png); }</string>
        </property>
@@ -476,7 +476,7 @@ QPushButton#pushButton_gou_ssmvep:pressed { border-image: url(:/main/pic/main_up
         </font>
        </property>
        <property name="styleSheet">
-       <string notr="true">QPushButton#pushButton_gou_mi { background-color: #DBE9F7; border-radius: 42px;
+        <string notr="true">QPushButton#pushButton_gou_mi { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_up_mi.png); }
 QPushButton#pushButton_gou_mi:pressed { border-image: url(:/main/pic/main_up_click_mi.png); }</string>
        </property>
@@ -500,7 +500,7 @@ QPushButton#pushButton_gou_mi:pressed { border-image: url(:/main/pic/main_up_cli
         </font>
        </property>
        <property name="styleSheet">
-       <string notr="true">QPushButton#pushButton_tai_ssvep { background-color: #DBE9F7; border-radius: 42px;
+        <string notr="true">QPushButton#pushButton_tai_ssvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_down_ssvep.png); }
 QPushButton#pushButton_tai_ssvep:pressed { border-image: url(:/main/pic/main_down_click_ssvep.png); }</string>
        </property>
@@ -524,7 +524,7 @@ QPushButton#pushButton_tai_ssvep:pressed { border-image: url(:/main/pic/main_dow
         </font>
        </property>
        <property name="styleSheet">
-       <string notr="true">QPushButton#pushButton_tai_ssmvep { background-color: #DBE9F7; border-radius: 42px;
+        <string notr="true">QPushButton#pushButton_tai_ssmvep { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_down_ssmvep.png); }
 QPushButton#pushButton_tai_ssmvep:pressed { border-image: url(:/main/pic/main_down_click_ssmvep.png); }</string>
        </property>
@@ -548,7 +548,7 @@ QPushButton#pushButton_tai_ssmvep:pressed { border-image: url(:/main/pic/main_do
         </font>
        </property>
        <property name="styleSheet">
-       <string notr="true">QPushButton#pushButton_tai_mi { background-color: #DBE9F7; border-radius: 42px;
+        <string notr="true">QPushButton#pushButton_tai_mi { background-color: #DBE9F7; border-radius: 42px;
 border-image: url(:/main/pic/main_down_mi.png); }
 QPushButton#pushButton_tai_mi:pressed { border-image: url(:/main/pic/main_down_click_mi.png); }</string>
        </property>
