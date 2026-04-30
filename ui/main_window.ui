@@ -2047,107 +2047,10 @@ border-image: url(:/main/pic/main_patient_off.png);</string>
         <string>确认</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_right_turnsmall">
-       <property name="geometry">
-        <rect>
-         <x>1570</x>
-         <y>530</y>
-         <width>71</width>
-         <height>71</height>
-        </rect>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">border-image: url(:/preprocess/pic/preprocess_eleTurnSmall.png);</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_right_grade">
-       <property name="geometry">
-        <rect>
-         <x>1570</x>
-         <y>360</y>
-         <width>71</width>
-         <height>131</height>
-        </rect>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>36</pointsize>
-         <bold>false</bold>
-        </font>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
-       </property>
-       <property name="text">
-        <string>0级</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignCenter</set>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="pushButton_right_turnbig">
-       <property name="geometry">
-        <rect>
-         <x>1570</x>
-         <y>260</y>
-         <width>71</width>
-         <height>71</height>
-        </rect>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">border-image: url(:/preprocess/pic/preprocess_eleTurnBig.png);</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
       <widget class="QComboBox" name="comboBox_left_scheme">
        <property name="geometry">
         <rect>
          <x>330</x>
-         <y>685</y>
-         <width>90</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>90</width>
-         <height>30</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>90</width>
-         <height>30</height>
-        </size>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>12</pointsize>
-        </font>
-       </property>
-       <item>
-        <property name="text">
-         <string>处方1</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>处方2</string>
-        </property>
-       </item>
-      </widget>
-      <widget class="QComboBox" name="comboBox_right_scheme">
-       <property name="geometry">
-        <rect>
-         <x>1200</x>
          <y>685</y>
          <width>90</width>
          <height>30</height>
@@ -2202,27 +2105,6 @@ border-image: url(:/main/pic/main_patient_off.png);</string>
         <string>方案选择</string>
        </property>
       </widget>
-      <widget class="QLabel" name="label_right_channel_2">
-       <property name="geometry">
-        <rect>
-         <x>1060</x>
-         <y>685</y>
-         <width>111</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>20</pointsize>
-        </font>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">color: rgb(88, 112, 224);</string>
-       </property>
-       <property name="text">
-        <string>方案选择</string>
-       </property>
-      </widget>
       <widget class="QLabel" name="label">
        <property name="geometry">
         <rect>
@@ -2244,108 +2126,10 @@ border-image: url(:/main/pic/main_patient_off.png);</string>
         <string>刺激频率</string>
        </property>
       </widget>
-      <widget class="QLabel" name="label_2">
-       <property name="geometry">
-        <rect>
-         <x>1460</x>
-         <y>685</y>
-         <width>111</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>20</pointsize>
-        </font>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">color: rgb(88, 112, 224);</string>
-       </property>
-       <property name="text">
-        <string>刺激频率</string>
-       </property>
-      </widget>
       <widget class="QComboBox" name="comboBox_left_freq">
        <property name="geometry">
         <rect>
          <x>720</x>
-         <y>685</y>
-         <width>150</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>150</width>
-         <height>30</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>150</width>
-         <height>30</height>
-        </size>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>12</pointsize>
-        </font>
-       </property>
-       <item>
-        <property name="text">
-         <string>一档（0.5Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>二挡（0.6Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>三档（0.7Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>四档（0.8Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>五档（0.9Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>六档（1.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>七档（2.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>八档（3.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>九档（4.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>十档（5.0Hz）</string>
-        </property>
-       </item>
-      </widget>
-      <widget class="QComboBox" name="comboBox_right_freq">
-       <property name="geometry">
-        <rect>
-         <x>1590</x>
          <y>685</y>
          <width>150</width>
          <height>30</height>
@@ -2571,124 +2355,6 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
         <bool>true</bool>
        </property>
       </widget>
-      <widget class="QLabel" name="label_34">
-       <property name="geometry">
-        <rect>
-         <x>1020</x>
-         <y>230</y>
-         <width>748</width>
-         <height>408</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>748</width>
-         <height>408</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>748</width>
-         <height>408</height>
-        </size>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">background-color: rgb(243, 245, 248);border-radius: 25px;</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-      <widget class="QWidget" name="widget_circle_level_right" native="true">
-       <property name="geometry">
-        <rect>
-         <x>1090</x>
-         <y>260</y>
-         <width>360</width>
-         <height>360</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>360</width>
-         <height>360</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>360</width>
-         <height>360</height>
-        </size>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_50">
-       <property name="geometry">
-        <rect>
-         <x>1680</x>
-         <y>360</y>
-         <width>27</width>
-         <height>144</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>27</width>
-         <height>144</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>27</width>
-         <height>144</height>
-        </size>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>18</pointsize>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
-       </property>
-       <property name="text">
-        <string>电刺激强度</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignCenter</set>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_51">
-       <property name="geometry">
-        <rect>
-         <x>1020</x>
-         <y>660</y>
-         <width>748</width>
-         <height>81</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>748</width>
-         <height>81</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>748</width>
-         <height>81</height>
-        </size>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">background-color: rgb(243, 245, 248);border-radius: 25px;</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
       <widget class="QPushButton" name="pushButton_reset_2">
        <property name="geometry">
         <rect>
@@ -2703,12 +2369,8 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
        </property>
       </widget>
       <zorder>widget_stim_leg_bar</zorder>
-      <zorder>label_34</zorder>
       <zorder>label_26</zorder>
       <zorder>pushButton_next</zorder>
-      <zorder>pushButton_right_turnsmall</zorder>
-      <zorder>label_right_grade</zorder>
-      <zorder>pushButton_right_turnbig</zorder>
       <zorder>pushButton_start_test</zorder>
       <zorder>widget_circle_level_left</zorder>
       <zorder>pushButton_left_turnbig</zorder>
@@ -2720,13 +2382,6 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <zorder>label_left_channel_2</zorder>
       <zorder>comboBox_left_scheme</zorder>
       <zorder>label_33</zorder>
-      <zorder>widget_circle_level_right</zorder>
-      <zorder>label_50</zorder>
-      <zorder>label_51</zorder>
-      <zorder>label_right_channel_2</zorder>
-      <zorder>comboBox_right_scheme</zorder>
-      <zorder>label_2</zorder>
-      <zorder>comboBox_right_freq</zorder>
       <zorder>pushButton_reset_2</zorder>
      </widget>
      <widget class="QWidget" name="tab_4">
