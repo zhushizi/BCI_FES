@@ -26,6 +26,9 @@ class StimTestApp:
     def start_treatment_channel(self, channel: str) -> bool:
         return self.service.start_treatment_channel(channel)
 
+    def stop_treatment_channel(self, channel: str) -> bool:
+        return self.service.stop_treatment_channel(channel)
+
     def set_treatment_params(
         self,
         scheme: int,
