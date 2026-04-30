@@ -156,7 +156,7 @@ class TrainingMainController:
             str(stim_position_raw).strip().lower(), stim_position_raw or ""
         )
 
-        # 刺激方案：转 int 加一，显示为「方案2」；刺激频率：转 int 加一，单位「档」
+        # 刺激方案：转 int 加一显示为「方案2」；刺激频率按 ms 显示。
         def _int_plus_one_unit(raw, unit: str, unit_before: bool = False) -> str:
             if raw is None or raw == "":
                 return ""
@@ -167,8 +167,16 @@ class TrainingMainController:
             except (TypeError, ValueError):
                 return ""
 
+        def _fmt_freq_ms(raw) -> str:
+            if raw is None or raw == "":
+                return ""
+            try:
+                return f"{int(raw)}ms"
+            except (TypeError, ValueError):
+                return ""
+
         scheme_display = _int_plus_one_unit(stim_scheme, "方案", unit_before=True) or "方案1"
-        freq_display = _int_plus_one_unit(stim_freq, "档") or "5档"
+        freq_display = _fmt_freq_ms(stim_freq) or "20ms"
 
         def _fmt(v) -> str:
             return "" if v is None or v == "" else str(v)

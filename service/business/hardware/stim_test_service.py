@@ -145,14 +145,14 @@ class StimTestService:
         设置治疗参数（发送数据帧）
 
         scheme: 1/2
-        frequency: 0~9
+        frequency: 20~100，单位 ms，写入数据帧频率字段时按单字节值发送（0x14~0x64）
         current: 0~0x99
         """
         # 参数验证
         if scheme not in [self.SCHEME_ONE, self.SCHEME_TWO]:
             raise ValueError(f"方案参数无效: {scheme}，应为 {self.SCHEME_ONE} 或 {self.SCHEME_TWO}")
-        if not (0 <= frequency <= 9):
-            raise ValueError(f"频率档位无效: {frequency}，应为 0~9")
+        if not (20 <= frequency <= 100):
+            raise ValueError(f"频率参数无效: {frequency}，应为 20~100ms")
         if not (0 <= current <= 0x99):
             raise ValueError(f"电流无效: {current}，应为 0~153 (0x00~0x99)")
 
@@ -164,7 +164,7 @@ class StimTestService:
             current=current,
             reserved_byte=reserved,
             time_byte=time_byte,
-            desc=f"治疗参数 方案={scheme}, 频率={frequency}, 电流={current}, reserved=0x{reserved:02X}{time_desc}",
+            desc=f"治疗参数 方案={scheme}, 频率={frequency}ms(0x{frequency:02X}), 电流={current}, reserved=0x{reserved:02X}{time_desc}",
         )
 
     def start_dual(self) -> bool:

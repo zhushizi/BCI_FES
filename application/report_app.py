@@ -64,7 +64,7 @@ class ReportApp:
         report_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         start_time = treat_start_time or report_time
 
-        # 把 UI 索引转为更稳定的数值（scheme=1/2, freq=0..9）
+        # 把 UI 值转为稳定数值（scheme=1/2，freq=20..100ms）
         left_scheme = ""
         right_scheme = ""
         left_freq = ""

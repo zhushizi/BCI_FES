@@ -2126,82 +2126,72 @@ border-image: url(:/main/pic/main_patient_off.png);</string>
         <string>刺激频率</string>
        </property>
       </widget>
-      <widget class="QComboBox" name="comboBox_left_freq">
+      <widget class="QSlider" name="comboBox_left_freq">
        <property name="geometry">
         <rect>
          <x>720</x>
          <y>685</y>
-         <width>150</width>
+         <width>220</width>
          <height>30</height>
         </rect>
        </property>
        <property name="minimumSize">
         <size>
-         <width>150</width>
+         <width>220</width>
          <height>30</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>150</width>
+         <width>220</width>
          <height>30</height>
         </size>
        </property>
+       <property name="minimum">
+        <number>20</number>
+       </property>
+       <property name="maximum">
+        <number>100</number>
+       </property>
+       <property name="singleStep">
+        <number>1</number>
+       </property>
+       <property name="pageStep">
+        <number>10</number>
+       </property>
+       <property name="value">
+        <number>20</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="tickPosition">
+        <enum>QSlider::TicksBelow</enum>
+       </property>
+       <property name="tickInterval">
+        <number>10</number>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_left_freq_value">
+       <property name="geometry">
+        <rect>
+         <x>955</x>
+         <y>685</y>
+         <width>80</width>
+         <height>31</height>
+        </rect>
+       </property>
        <property name="font">
         <font>
-         <pointsize>12</pointsize>
+         <pointsize>14</pointsize>
         </font>
        </property>
-       <item>
-        <property name="text">
-         <string>一档（0.5Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>二挡（0.6Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>三档（0.7Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>四档（0.8Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>五档（0.9Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>六档（1.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>七档（2.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>八档（3.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>九档（4.0Hz）</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>十档（5.0Hz）</string>
-        </property>
-       </item>
+       <property name="styleSheet">
+        <string notr="true">color: rgb(88, 112, 224);</string>
+       </property>
+       <property name="text">
+        <string>20 ms</string>
+       </property>
       </widget>
       <widget class="QPushButton" name="pushButton_start_test">
        <property name="geometry">
@@ -2368,6 +2358,107 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
         <string>恢复默认</string>
        </property>
       </widget>
+      <widget class="QScrollBar" name="horizontalScrollBar_time_stim">
+       <property name="geometry">
+        <rect>
+         <x>1070</x>
+         <y>300</y>
+         <width>160</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+      <widget class="QScrollBar" name="horizontalScrollBar_time_rise">
+       <property name="geometry">
+        <rect>
+         <x>1070</x>
+         <y>410</y>
+         <width>160</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+      <widget class="QScrollBar" name="horizontalScrollBar_time_down">
+       <property name="geometry">
+        <rect>
+         <x>1090</x>
+         <y>510</y>
+         <width>160</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_2">
+       <property name="geometry">
+        <rect>
+         <x>1020</x>
+         <y>180</y>
+         <width>53</width>
+         <height>15</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>脉冲宽度</string>
+       </property>
+      </widget>
+      <widget class="QComboBox" name="comboBox_pulse_width">
+       <property name="geometry">
+        <rect>
+         <x>1100</x>
+         <y>180</y>
+         <width>69</width>
+         <height>22</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_3">
+       <property name="geometry">
+        <rect>
+         <x>980</x>
+         <y>310</y>
+         <width>53</width>
+         <height>15</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>刺激时长</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_5">
+       <property name="geometry">
+        <rect>
+         <x>980</x>
+         <y>410</y>
+         <width>53</width>
+         <height>15</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>上升时长</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_6">
+       <property name="geometry">
+        <rect>
+         <x>1000</x>
+         <y>520</y>
+         <width>53</width>
+         <height>15</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>下降时长</string>
+       </property>
+      </widget>
       <zorder>widget_stim_leg_bar</zorder>
       <zorder>label_26</zorder>
       <zorder>pushButton_next</zorder>
@@ -2379,10 +2470,19 @@ QPushButton:disabled { background-color: #707070; color: rgba(255, 255, 255, 1);
       <zorder>label_30</zorder>
       <zorder>label</zorder>
       <zorder>comboBox_left_freq</zorder>
+      <zorder>label_left_freq_value</zorder>
       <zorder>label_left_channel_2</zorder>
       <zorder>comboBox_left_scheme</zorder>
       <zorder>label_33</zorder>
       <zorder>pushButton_reset_2</zorder>
+      <zorder>horizontalScrollBar_time_stim</zorder>
+      <zorder>horizontalScrollBar_time_rise</zorder>
+      <zorder>horizontalScrollBar_time_down</zorder>
+      <zorder>label_2</zorder>
+      <zorder>comboBox_pulse_width</zorder>
+      <zorder>label_3</zorder>
+      <zorder>label_5</zorder>
+      <zorder>label_6</zorder>
      </widget>
      <widget class="QWidget" name="tab_4">
       <attribute name="title">

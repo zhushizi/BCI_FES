@@ -31,7 +31,7 @@ class ParadigmActionApp:
         current = treat_params.left_grade if channel == "left" else treat_params.right_grade
 
         scheme = int(scheme_idx or 0) + 1
-        frequency = int(freq_idx or 0)
+        frequency = int(freq_idx or 20)
         current_val = int(current or 0)
 
         try:

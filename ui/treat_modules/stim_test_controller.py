@@ -24,6 +24,9 @@ class StimTestController:
 
     _NEXT_CONFIRM = "确认"
     _NEXT_ITEM = "下一项"
+    _FREQ_MIN_MS = 20
+    _FREQ_MAX_MS = 100
+    _FREQ_DEFAULT_MS = 20
 
     _STYLE_LEG_SELECTED = (
         "QPushButton { background-color: rgb(219, 233, 247); color: rgb(88, 122, 244); "
@@ -49,13 +52,13 @@ class StimTestController:
         # 设备在线状态（影响控件可用性）
         self._hardware_online = True
 
-        # 频率默认第五档（index=4）。这里在绑定信号前设置，避免触发下发指令。
-        self._set_default_freq_to_fifth()
+        # 频率默认 20ms。这里在绑定信号前设置，避免触发下发指令。
+        self._set_default_freq()
 
-        # 记录 UI 初始默认的方案/频率索引（用于患者第一次进入时初始化）
+        # 记录 UI 初始默认的方案/频率值（用于患者第一次进入时初始化）
         self._default_params = {
             "left_scheme_idx": self._get_combo_index("comboBox_left_scheme") or 0,
-            "left_freq_idx": self._get_combo_index("comboBox_left_freq") or 0,
+            "left_freq_idx": self._get_freq_value(),
         }
 
         self._current_patient_id: Optional[str] = None
@@ -214,12 +217,15 @@ class StimTestController:
 
         # 左通道频率/方案选择
         left_freq = get_ui_attr(self.ui, "comboBox_left_freq")
+        safe_connect(self._logger, getattr(left_freq, "valueChanged", None), self._on_left_freq_value_changed)
+        safe_connect(self._logger, getattr(left_freq, "sliderReleased", None), self._on_left_freq_released)
         safe_connect(self._logger, getattr(left_freq, "currentIndexChanged", None), self._on_left_freq_changed)
         left_scheme = get_ui_attr(self.ui, "comboBox_left_scheme")
         safe_connect(self._logger, getattr(left_scheme, "currentIndexChanged", None), self._on_left_scheme_changed)
 
         self._init_left_circle_widget()
         self._hide_right_channel_widgets()
+        self._update_freq_value_label()
 
     def _on_stim_leg_clicked(self, left: bool) -> None:
         self._switch_active_leg(left=left)
@@ -323,19 +329,9 @@ class StimTestController:
         self._save_current_params()
 
     # ----------------- UI 状态管理 -----------------
-    def _set_default_freq_to_fifth(self) -> None:
-        """将频率下拉框默认设置为第五档（index=4）"""
-        for name in ("comboBox_left_freq",):
-            combo = get_ui_attr(self.ui, name)
-            if combo is None:
-                continue
-            try:
-                if int(combo.count()) >= 5:
-                    old_block = combo.blockSignals(True)
-                    combo.setCurrentIndex(4)
-                    combo.blockSignals(old_block)
-            except Exception:
-                self._logger.exception("设置默认频率失败: %s", name)
+    def _set_default_freq(self) -> None:
+        """将频率拖条默认设置为 20ms。"""
+        self._set_freq_value(self._FREQ_DEFAULT_MS)
 
     def _set_running_state(self, running: bool) -> None:
         self._test_running = bool(running)
@@ -375,12 +371,12 @@ class StimTestController:
         enabled = bool(self._hardware_online)
 
         if not enabled:
-            # 离线：重置档位为 0，恢复默认下拉框
+            # 离线：重置档位为 0，恢复默认方案/频率
             self._set_left_grade(0)
             self._set_combo_index("comboBox_left_scheme", self._default_params.get("left_scheme_idx", 0))
-            self._set_combo_index("comboBox_left_freq", self._default_params.get("left_freq_idx", 0))
+            self._set_freq_value(self._default_params.get("left_freq_idx", self._FREQ_DEFAULT_MS))
 
-        # 方案/频率下拉框：离线时不可选
+        # 方案/频率控件：离线时不可选
         for name in (
             "comboBox_left_freq",
             "comboBox_left_scheme",
@@ -481,19 +477,25 @@ class StimTestController:
         channel = self._selected_leg_channel()
         scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
         scheme = 1 if scheme_idx <= 0 else 2
-        freq_idx = self._get_combo_index("comboBox_left_freq") or 0
-        frequency = int(freq_idx)
+        frequency = self._get_freq_value()
         current = max(0, min(0x99, int(current_value)))
         try:
             self.stim_app.set_params(scheme=scheme, frequency=frequency, current=current, channel=channel)
         except Exception:
             self._logger.exception("下发%s通道参数失败", channel)
 
-    # ----------------- UI 事件：下拉框/按钮 -----------------
-    def _on_left_freq_changed(self, index: int) -> None:
+    # ----------------- UI 事件：频率/方案/按钮 -----------------
+    def _on_left_freq_value_changed(self, value: int) -> None:
+        self._update_freq_value_label(value)
+
+    def _on_left_freq_released(self) -> None:
         current_grade = self._get_left_grade()
         self._send_left_channel_params(current_value=current_grade)
         self._save_current_params()
+
+    def _on_left_freq_changed(self, index: int) -> None:
+        self._update_freq_value_label()
+        self._on_left_freq_released()
 
     def _on_left_scheme_changed(self, index: int) -> None:
         current_grade = self._get_left_grade()
@@ -545,6 +547,56 @@ class StimTestController:
         except Exception:
             self._logger.exception("设置下拉框索引失败: %s", name)
 
+    def _get_freq_value(self) -> int:
+        slider = get_ui_attr(self.ui, "comboBox_left_freq")
+        if slider is None:
+            return self._FREQ_DEFAULT_MS
+        try:
+            value_getter = getattr(slider, "value", None)
+            if callable(value_getter):
+                return self._normalize_freq_value(int(value_getter()))
+            current_index_getter = getattr(slider, "currentIndex", None)
+            if callable(current_index_getter):
+                return self._normalize_freq_value(int(current_index_getter()))
+        except Exception:
+            self._logger.exception("读取频率值失败")
+        return self._FREQ_DEFAULT_MS
+
+    def _set_freq_value(self, value: int | None) -> None:
+        slider = get_ui_attr(self.ui, "comboBox_left_freq")
+        if slider is None:
+            return
+        freq = self._normalize_freq_value(value)
+        try:
+            if hasattr(slider, "setMinimum"):
+                slider.setMinimum(self._FREQ_MIN_MS)
+            if hasattr(slider, "setMaximum"):
+                slider.setMaximum(self._FREQ_MAX_MS)
+            old_block = slider.blockSignals(True)
+            set_value = getattr(slider, "setValue", None)
+            if callable(set_value):
+                set_value(freq)
+            else:
+                set_index = getattr(slider, "setCurrentIndex", None)
+                if callable(set_index):
+                    set_index(freq)
+            slider.blockSignals(old_block)
+            self._update_freq_value_label(freq)
+        except Exception:
+            self._logger.exception("设置频率值失败")
+
+    def _normalize_freq_value(self, value: int | None) -> int:
+        if value is None:
+            return self._FREQ_DEFAULT_MS
+        return max(self._FREQ_MIN_MS, min(self._FREQ_MAX_MS, int(value)))
+
+    def _update_freq_value_label(self, value: int | None = None) -> None:
+        label = get_ui_attr(self.ui, "label_left_freq_value")
+        if label is None:
+            return
+        freq = self._get_freq_value() if value is None else self._normalize_freq_value(value)
+        safe_call(self._logger, getattr(label, "setText", None), f"{freq} ms")
+
     def _extract_patient_id(self, patient: dict | None) -> str | None:
         if not patient:
             return None
@@ -587,11 +639,11 @@ class StimTestController:
         if selected == "right":
             self._set_left_grade(getattr(params, "right_grade", 0))
             self._set_combo_index("comboBox_left_scheme", getattr(params, "right_scheme_idx", 0))
-            self._set_combo_index("comboBox_left_freq", getattr(params, "right_freq_idx", 0))
+            self._set_freq_value(getattr(params, "right_freq_idx", self._FREQ_DEFAULT_MS))
             return
         self._set_left_grade(getattr(params, "left_grade", 0))
         self._set_combo_index("comboBox_left_scheme", getattr(params, "left_scheme_idx", 0))
-        self._set_combo_index("comboBox_left_freq", getattr(params, "left_freq_idx", 0))
+        self._set_freq_value(getattr(params, "left_freq_idx", self._FREQ_DEFAULT_MS))
 
     def _save_current_params(self) -> None:
         pid = self._current_patient_id
@@ -611,7 +663,7 @@ class StimTestController:
                 )
             current_grade = self._get_left_grade()
             current_scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
-            current_freq_idx = self._get_combo_index("comboBox_left_freq") or 0
+            current_freq_idx = self._get_freq_value()
             if self._selected_leg_channel() == "right":
                 left_grade = getattr(params, "left_grade", 0)
                 left_scheme_idx = getattr(params, "left_scheme_idx", self._default_params.get("left_scheme_idx", 0))

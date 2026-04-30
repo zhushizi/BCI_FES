@@ -186,6 +186,12 @@ class TreatRecordTable:
     @staticmethod
     def _map_stim_interval(value) -> str:
         text = str(value or "").strip()
+        try:
+            n = int(text)
+            if 20 <= n <= 100:
+                return f"{n} ms"
+        except (TypeError, ValueError):
+            pass
         mapping = {
             "0": "0.5",
             "1": "0.6",

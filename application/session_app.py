@@ -16,7 +16,7 @@ class PatientTreatParams:
 
     - left/right_grade: 0~99
     - left/right_scheme_idx: UI 下拉框索引（0/1）
-    - left/right_freq_idx: UI 下拉框索引（0..9）
+    - left/right_freq_idx: 刺激频率，单位 ms（20..100）
     """
 
     patient_id: str
@@ -24,8 +24,8 @@ class PatientTreatParams:
     right_grade: int = 0
     left_scheme_idx: int = 0
     right_scheme_idx: int = 0
-    left_freq_idx: int = 0
-    right_freq_idx: int = 0
+    left_freq_idx: int = 20
+    right_freq_idx: int = 20
 
 
 @dataclass

@@ -11,6 +11,8 @@ from typing import Optional, Callable
 from threading import Thread
 import logging
 
+from service.business.protocol.heartbeat_frame import HeartbeatFrame
+
 
 class SerialHardware:
     """串口硬件通信类"""
@@ -18,7 +20,8 @@ class SerialHardware:
     def __init__(self, port: str = None, baudrate: int = 115200,
                  timeout: float = 1.0, bytesize: int = 8,
                  parity: str = 'N', stopbits: int = 1,
-                 log_receive_enabled: bool = True):
+                 log_receive_enabled: bool = True,
+                 log_heartbeat_enabled: bool = False):
         """
         初始化串口通信
         
@@ -44,6 +47,7 @@ class SerialHardware:
         self.receive_thread: Optional[Thread] = None
         self.receive_running = False
         self.log_receive_enabled = bool(log_receive_enabled)
+        self.log_heartbeat_enabled = bool(log_heartbeat_enabled)
         
         self.logger = logging.getLogger(__name__)
     
@@ -140,7 +144,7 @@ class SerialHardware:
         try:
             bytes_written = self.serial_obj.write(data)
             self.serial_obj.flush()  # 确保数据立即发送
-            if self.log_receive_enabled:
+            if self._should_log_data(data):
                 self.logger.info(f"[发送指令] 数据: {data.hex()} ({len(data)} 字节)")
             return bytes_written == len(data)
         except serial.SerialException as e:
@@ -167,7 +171,7 @@ class SerialHardware:
         try:
             if self.serial_obj.in_waiting > 0:
                 data = self.serial_obj.read(min(size, self.serial_obj.in_waiting))
-                if self.log_receive_enabled:
+                if self._should_log_data(data):
                     # 使用 INFO 级别，确保在终端打印
                     self.logger.info(f"[接收指令] 数据: {data.hex()} ({len(data)} 字节)")
                 return data
@@ -223,7 +227,7 @@ class SerialHardware:
                 if self.serial_obj and self.serial_obj.in_waiting > 0:
                     data = self.serial_obj.read(self.serial_obj.in_waiting)
                     if data:
-                        if self.log_receive_enabled:
+                        if self._should_log_data(data):
                             # 使用 INFO 级别，确保在终端打印接收到的数据
                             self.logger.info(f"[接收指令] 数据: {data.hex()} ({len(data)} 字节)")
                         if self._data_received_callbacks:
@@ -242,6 +246,27 @@ class SerialHardware:
             except Exception as e:
                 self.logger.error(f"接收数据时发生未知错误: {e}")
                 break
+
+    def _should_log_data(self, data: bytes) -> bool:
+        if not self.log_receive_enabled:
+            return False
+        if self.log_heartbeat_enabled:
+            return True
+        return not self._is_heartbeat_frame(data)
+
+    def _is_heartbeat_frame(self, data: bytes) -> bool:
+        if len(data) != HeartbeatFrame.FRAME_SIZE:
+            return False
+        if data[0:2] != HeartbeatFrame.FRAME_HEADER:
+            return False
+        if data[2] != HeartbeatFrame.FRAME_LENGTH:
+            return False
+        if data[4] != HeartbeatFrame.HEARTBEAT_MODE:
+            return False
+        if data[5] not in (HeartbeatFrame.HEARTBEAT_FROM_DEVICE, HeartbeatFrame.HEARTBEAT_TO_DEVICE):
+            return False
+        expected_checksum = HeartbeatFrame.calculate_checksum(bytearray(data[:HeartbeatFrame.FRAME_DATA_SIZE]))
+        return data[HeartbeatFrame.FRAME_DATA_SIZE:HeartbeatFrame.FRAME_SIZE] == expected_checksum
     
     @staticmethod
     def list_available_ports() -> list:

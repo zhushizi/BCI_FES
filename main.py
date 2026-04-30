@@ -82,6 +82,7 @@ class AppConfig:
     com_port: str = ""
     ws_url: str = "ws://127.0.0.1:8080"
     log_receive_enabled: bool = False
+    log_heartbeat_enabled: bool = False
     ws_enable_heartbeat: bool = False
     ws_max_message_size: Optional[int] = 4 * 1024 * 1024
     enable_sub_window: bool = True
@@ -158,6 +159,7 @@ def build_services(config: AppConfig) -> ServiceBundle:
     serial_hw = SerialHardware(
         port = config.com_port,
         log_receive_enabled = config.log_receive_enabled,
+        log_heartbeat_enabled = config.log_heartbeat_enabled,
     )
     if not serial_hw.connect():
         logger.warning("串口连接失败: %s", config.com_port)
@@ -535,10 +537,18 @@ def main() -> None:
         "--log-recv",
         dest="log_receive_enabled",
         action="store_true",
-        default=True,
+        default=bool(config_data.get("log_receive_enabled", AppConfig.log_receive_enabled)),
         help="启用串口接收日志（解包前原始数据，默认开启）",
     )
     parser.add_argument("--no-log-recv", dest="log_receive_enabled", action="store_false", help="关闭串口接收日志")
+    parser.add_argument(
+        "--log-heartbeat",
+        dest="log_heartbeat_enabled",
+        action="store_true",
+        default=bool(config_data.get("log_heartbeat_enabled", AppConfig.log_heartbeat_enabled)),
+        help="启用下位机心跳帧日志",
+    )
+    parser.add_argument("--no-log-heartbeat", dest="log_heartbeat_enabled", action="store_false", help="关闭下位机心跳帧日志")
     parser.add_argument(
         "--ws-heartbeat",
         dest="ws_enable_heartbeat",
@@ -601,6 +611,7 @@ def main() -> None:
         com_port=args.com_port,
         ws_url=args.ws_url,
         log_receive_enabled=args.log_receive_enabled,
+        log_heartbeat_enabled=args.log_heartbeat_enabled,
         ws_enable_heartbeat=args.ws_enable_heartbeat,
         ws_max_message_size=ws_max_message_size,
         enable_sub_window=args.enable_sub_window,

@@ -125,6 +125,8 @@ def _get_treatment_info(detail: Optional[Dict[str, Any]]) -> Dict[str, str]:
         }
         try:
             key = int(v)
+            if 20 <= key <= 100:
+                return f"{key} ms"
             return mapping.get(key, str(v))
         except Exception:
             return str(v)
@@ -174,7 +176,7 @@ def _build_train_section(detail: Dict[str, Any]) -> str:
         items.append(f"<b>本次进度:</b> {html.escape(str(progress))}%")
     freq = detail.get("StimFreqAB")
     if freq is not None and freq != "":
-        items.append(f"<b>训练频率:</b> {html.escape(str(freq))}")
+        items.append(f"<b>训练频率:</b> {html.escape(_get_treatment_info(detail).get('StimFreqAB', str(freq)))}")
     complete_rate = _extract_complete_rate(detail.get("TrainResult"))
     if complete_rate:
         items.append(f"<b>任务完成率:</b> {html.escape(complete_rate)}")
@@ -537,7 +539,7 @@ def build_report_html(
         '<table class="row-2col" width="100%">'
         '<tr>'
         f'<td width="50%" align="left"><span class="label">刺激方案:</span>{html.escape("方案" + tri["StimSchemeAB"])}</td>'
-        f'<td width="50%" align="center"><span class="label">刺激频率:</span>{html.escape(tri["StimFreqAB"])}Hz</td>'
+        f'<td width="50%" align="center"><span class="label">刺激频率:</span>{html.escape(tri["StimFreqAB"])}</td>'
         '</tr>'
         '</table>'
     )
