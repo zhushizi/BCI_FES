@@ -41,11 +41,8 @@ class StimTestController:
         self._logger = logging.getLogger(__name__)
         self._treat_entry_button: Optional[str] = None
         self._current_patient_for_leg: dict | None = None
-        # 双腿 + 勾脚范式：0=当前强调左腿阶段，1=强调右腿阶段（第二次点「确认」才离开本页）
         self._dual_leg_flow_step: int = 0
-
-        # 控件联动保护：避免左右下拉框互相设置时触发递归回调
-        self._is_syncing_scheme_freq = False
+        self._active_leg_channel: str = "left"
 
         # True=开始状态（stop可用/start不可用/next不可用）；False=停止状态（start可用/stop不可用/next可用）
         self._test_running = False
@@ -58,9 +55,7 @@ class StimTestController:
         # 记录 UI 初始默认的方案/频率索引（用于患者第一次进入时初始化）
         self._default_params = {
             "left_scheme_idx": self._get_combo_index("comboBox_left_scheme") or 0,
-            "right_scheme_idx": self._get_combo_index("comboBox_right_scheme") or 0,
             "left_freq_idx": self._get_combo_index("comboBox_left_freq") or 0,
-            "right_freq_idx": self._get_combo_index("comboBox_right_freq") or 0,
         }
 
         self._current_patient_id: Optional[str] = None
@@ -69,13 +64,6 @@ class StimTestController:
 
     def set_treat_entry_button(self, button_name: Optional[str]) -> None:
         self._treat_entry_button = (button_name or "").strip() or None
-
-    @staticmethod
-    def _patient_is_both_legs(patient: dict | None) -> bool:
-        if not patient:
-            return False
-        leg = str(patient.get("Leg") or "").strip()
-        return leg == "双腿"
 
     def _stim_leg_part_label(self) -> str:
         """范式按钮名含 gou→小腿，含 tai→大腿；默认小腿。"""
@@ -98,10 +86,6 @@ class StimTestController:
             return "right"
         return "both"
 
-    def _bilateral_two_step_enabled(self) -> bool:
-        """患腿为「双腿」时：底部「确认」→「下一项」两步后才离开电刺激页。"""
-        return self._patient_is_both_legs(self._current_patient_for_leg)
-
     def refresh_stim_leg_bar(self) -> None:
         """刺激位置栏始终展示；文案随范式 gou/tai；单侧只显示对应腿。"""
         bar = get_ui_attr(self.ui, "widget_stim_leg_bar")
@@ -118,29 +102,21 @@ class StimTestController:
             safe_call(self._logger, getattr(btn_l, "setVisible", None), mode in ("both", "left"))
         if btn_r:
             safe_call(self._logger, getattr(btn_r, "setVisible", None), mode in ("both", "right"))
-        if mode == "left":
-            self._dual_leg_flow_step = 0
-            self._set_leg_highlight(left_selected=True)
-            self._set_preprocess_next_button_text(self._NEXT_ITEM)
-        elif mode == "right":
-            self._dual_leg_flow_step = 0
-            self._set_leg_highlight(left_selected=False)
-            self._set_preprocess_next_button_text(self._NEXT_ITEM)
-        else:
-            self.reset_dual_leg_flow()
+        self._dual_leg_flow_step = 0
+        self._set_leg_highlight(left_selected=(mode != "right"))
+        self._set_preprocess_next_button_text(self._NEXT_CONFIRM if mode == "both" else self._NEXT_ITEM)
+        self._hide_right_channel_widgets()
 
     def reset_dual_leg_flow(self) -> None:
-        """双腿：两步流程复位为左腿高亮、「确认」。单侧患者不调用有效分支。"""
-        if not self._bilateral_two_step_enabled():
-            return
+        """重置“确认/下一项”流程：双腿为确认，单腿为下一项。"""
         self._dual_leg_flow_step = 0
-        self._set_leg_highlight(left_selected=True)
-        self._set_preprocess_next_button_text(self._NEXT_CONFIRM)
+        mode = self._patient_leg_display_mode()
+        self._set_preprocess_next_button_text(self._NEXT_CONFIRM if mode == "both" else self._NEXT_ITEM)
 
     def on_completed_leave_stim_tab(self) -> None:
-        """离开电刺激子页进入阻抗页后：恢复底部「确认」文案（与双腿两步流程无关者也安全）。"""
+        """离开电刺激子页进入阻抗页后：重置确认/下一项流程。"""
         self._dual_leg_flow_step = 0
-        self._set_preprocess_next_button_text(self._NEXT_CONFIRM)
+        self.reset_dual_leg_flow()
 
     def _set_preprocess_next_button_text(self, text: str) -> None:
         btn = get_ui_attr(self.ui, "pushButton_next")
@@ -151,15 +127,22 @@ class StimTestController:
         btn_r = get_ui_attr(self.ui, "pushButton_stim_leg_right")
         mode = self._patient_leg_display_mode()
         if mode == "left":
+            self._active_leg_channel = "left"
             if btn_l:
                 safe_call(self._logger, getattr(btn_l, "setChecked", None), True)
                 safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_SELECTED)
+            if btn_r:
+                safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_NORMAL)
             return
         if mode == "right":
+            self._active_leg_channel = "right"
             if btn_r:
                 safe_call(self._logger, getattr(btn_r, "setChecked", None), True)
                 safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_SELECTED)
+            if btn_l:
+                safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_NORMAL)
             return
+        self._active_leg_channel = "left" if left_selected else "right"
         if btn_l:
             safe_call(self._logger, getattr(btn_l, "setChecked", None), left_selected)
             safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_SELECTED if left_selected else self._STYLE_LEG_NORMAL)
@@ -168,42 +151,41 @@ class StimTestController:
             safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_NORMAL if left_selected else self._STYLE_LEG_SELECTED)
 
     def handle_dual_leg_next_click(self) -> bool:
-        """
-        双腿：第一次点「确认」仅切到右腿高亮并改「下一项」；第二次再离开本 tab。
-        患腿为单腿时始终返回 False（由「下一项」一次离开）。
-        """
-        if not self._bilateral_two_step_enabled():
+        """双腿患者需先点“确认”，再点“下一项”才允许跳页。"""
+        if self._patient_leg_display_mode() != "both":
             return False
-        if not self.ensure_stopped_before_next():
-            return True
         if self._dual_leg_flow_step == 0:
-            if self._get_left_grade() <= 0:
-                part = self._stim_leg_part_label()
-                TipsDialog.show_tips(self.ui, f"请先完成左腿（{part}）侧电刺激强度测试")
+            if self._test_running:
+                TipsDialog.show_tips(self.ui, "请先点击“停止测试”，停止后才能确认当前侧")
                 return True
+            if self._get_left_grade() <= 0:
+                TipsDialog.show_tips(self.ui, f"请完成{self._leg_text(self._selected_leg_channel())}（{self._stim_leg_part_label()}）侧电刺激强度测试")
+                return True
+            self._save_current_params()
             self._dual_leg_flow_step = 1
-            self._set_leg_highlight(left_selected=False)
+            self._switch_active_leg(left=False, save_current=False)
             self._set_preprocess_next_button_text(self._NEXT_ITEM)
             return True
         return False
 
     def stim_grades_satisfied_for_next(self) -> bool:
-        """离开电刺激页前：按患腿要求检查已测档位。"""
-        mode = self._patient_leg_display_mode()
+        """离开电刺激页前：检查当前患者需要测试的腿部档位。"""
+        self._save_current_params()
         part = self._stim_leg_part_label()
-        if mode == "left":
-            if self._get_left_grade() <= 0:
-                TipsDialog.show_tips(self.ui, f"请完成左腿（{part}）侧电刺激强度测试")
+        mode = self._patient_leg_display_mode()
+        params = self._load_current_treat_params()
+        if mode == "both":
+            checks = (
+                ("left", getattr(params, "left_grade", 0) if params else 0),
+                ("right", getattr(params, "right_grade", 0) if params else 0),
+            )
+        else:
+            channel = "right" if mode == "right" else "left"
+            checks = ((channel, self._get_left_grade()),)
+        for channel, grade in checks:
+            if int(grade or 0) <= 0:
+                TipsDialog.show_tips(self.ui, f"请完成{self._leg_text(channel)}（{part}）侧电刺激强度测试")
                 return False
-            return True
-        if mode == "right":
-            if self._get_right_grade() <= 0:
-                TipsDialog.show_tips(self.ui, f"请完成右腿（{part}）侧电刺激强度测试")
-                return False
-            return True
-        if self._get_left_grade() <= 0 or self._get_right_grade() <= 0:
-            TipsDialog.show_tips(self.ui, "请进行电刺激强度测试")
-            return False
         return True
 
     @property
@@ -236,25 +218,48 @@ class StimTestController:
         left_scheme = get_ui_attr(self.ui, "comboBox_left_scheme")
         safe_connect(self._logger, getattr(left_scheme, "currentIndexChanged", None), self._on_left_scheme_changed)
 
-        # 右通道等级调整按钮
-        right_big = get_ui_attr(self.ui, "pushButton_right_turnbig")
-        safe_connect(self._logger, getattr(right_big, "clicked", None), self._on_right_grade_increase)
-        right_small = get_ui_attr(self.ui, "pushButton_right_turnsmall")
-        safe_connect(self._logger, getattr(right_small, "clicked", None), self._on_right_grade_decrease)
-
-        # 右通道频率/方案选择
-        right_freq = get_ui_attr(self.ui, "comboBox_right_freq")
-        safe_connect(self._logger, getattr(right_freq, "currentIndexChanged", None), self._on_right_freq_changed)
-        right_scheme = get_ui_attr(self.ui, "comboBox_right_scheme")
-        safe_connect(self._logger, getattr(right_scheme, "currentIndexChanged", None), self._on_right_scheme_changed)
-
         self._init_left_circle_widget()
-        self._init_right_circle_widget()
+        self._hide_right_channel_widgets()
 
     def _on_stim_leg_clicked(self, left: bool) -> None:
-        if not self._bilateral_two_step_enabled():
-            return
+        self._switch_active_leg(left=left)
+
+    def _switch_active_leg(self, left: bool, save_current: bool = True) -> None:
+        target = "left" if left else "right"
+        if save_current and target != self._active_leg_channel:
+            self._save_current_params()
         self._set_leg_highlight(left_selected=left)
+        self._apply_cached_params(channel=self._selected_leg_channel())
+
+    def _selected_leg_channel(self) -> str:
+        mode = self._patient_leg_display_mode()
+        if mode == "right":
+            return "right"
+        if mode == "left":
+            return "left"
+        return self._active_leg_channel if self._active_leg_channel in ("left", "right") else "left"
+
+    def _leg_text(self, channel: str) -> str:
+        return "右腿" if channel == "right" else "左腿"
+
+    def _hide_right_channel_widgets(self) -> None:
+        # 单通道模式下隐藏右通道区域控件
+        for name in (
+            "widget_circle_level_right",
+            "label_right_grade",
+            "pushButton_right_turnsmall",
+            "pushButton_right_turnbig",
+            "comboBox_right_freq",
+            "comboBox_right_scheme",
+            "label_right_channel",
+            "label_right_channel_2",
+            "label_34",
+            "label_50",
+            "label_51",
+            "label_49",
+        ):
+            widget = get_ui_attr(self.ui, name)
+            safe_call(self._logger, getattr(widget, "setVisible", None), False)
 
     def _init_left_circle_widget(self) -> None:
         """在 widget_circle_level_left 中放入只读圆环，与 label_left_grade 联动，并裁剪为圆形区域。"""
@@ -270,24 +275,6 @@ class StimTestController:
         self._left_circle_widget.set_read_only(True)
         self._left_circle_widget.set_level(self._get_left_grade())
         layout.addWidget(self._left_circle_widget)
-
-        host.installEventFilter(_CircleMaskResizeFilter(host))
-        QTimer.singleShot(0, lambda: self._apply_circle_mask_to_host(host))
-
-    def _init_right_circle_widget(self) -> None:
-        """在 widget_circle_level_right 中放入只读圆环，与 label_right_grade 联动，并裁剪为圆形区域。"""
-        host = get_ui_attr(self.ui, "widget_circle_level_right")
-        if host is None:
-            return
-        layout = host.layout()
-        if layout is None:
-            layout = QVBoxLayout(host)
-            layout.setContentsMargins(0, 0, 0, 0)
-        self._right_circle_widget = CircleLevelWidget(host)
-        self._right_circle_widget.set_level_range(0, 99)
-        self._right_circle_widget.set_read_only(True)
-        self._right_circle_widget.set_level(self._get_right_grade())
-        layout.addWidget(self._right_circle_widget)
 
         host.installEventFilter(_CircleMaskResizeFilter(host))
         QTimer.singleShot(0, lambda: self._apply_circle_mask_to_host(host))
@@ -315,14 +302,14 @@ class StimTestController:
                     self.session_app.set_current_patient("")
             except Exception:
                 self._logger.exception("设置当前患者失败")
-        self._apply_cached_params()
         self.refresh_stim_leg_bar()
+        self._apply_cached_params()
 
     def on_enter(self) -> None:
         """进入电刺激页：强制回到停止态。"""
-        self._apply_cached_params()
         self._set_running_state(running=False)
         self.refresh_stim_leg_bar()
+        self._apply_cached_params()
 
     def on_exit(self) -> None:
         """离开电刺激页：保存当前档位并停止。"""
@@ -330,17 +317,15 @@ class StimTestController:
         self._stop_treatment_safe()
 
     def reset_stimulus_grades(self) -> None:
-        """清零左右刺激强度（0级）并同步到硬件与 session。从主页面进入新 session 时调用。"""
+        """清零单通道刺激强度（0级）并同步到硬件与 session。"""
         self._set_left_grade(0)
-        self._set_right_grade(0)
         self._send_left_channel_params(current_value=0)
-        self._send_right_channel_params(current_value=0)
         self._save_current_params()
 
     # ----------------- UI 状态管理 -----------------
     def _set_default_freq_to_fifth(self) -> None:
-        """将左右频率下拉框默认设置为第五档（index=4）"""
-        for name in ("comboBox_left_freq", "comboBox_right_freq"):
+        """将频率下拉框默认设置为第五档（index=4）"""
+        for name in ("comboBox_left_freq",):
             combo = get_ui_attr(self.ui, name)
             if combo is None:
                 continue
@@ -372,12 +357,10 @@ class StimTestController:
                 f"QPushButton:disabled {{ background-color: #707070; color: white; border-radius: 12.6px; }}",
             )
 
-        # 左右通道档位调节按钮：在线即可点，未开始测试时点击会弹提示
+        # 单通道档位调节按钮：在线即可点，未开始测试时点击会弹提示
         for btn_name in (
             "pushButton_left_turnbig",
             "pushButton_left_turnsmall",
-            "pushButton_right_turnbig",
-            "pushButton_right_turnsmall",
         ):
             button = get_ui_attr(self.ui, btn_name)
             safe_call(self._logger, getattr(button, "setEnabled", None), self._hardware_online)
@@ -394,18 +377,13 @@ class StimTestController:
         if not enabled:
             # 离线：重置档位为 0，恢复默认下拉框
             self._set_left_grade(0)
-            self._set_right_grade(0)
             self._set_combo_index("comboBox_left_scheme", self._default_params.get("left_scheme_idx", 0))
-            self._set_combo_index("comboBox_right_scheme", self._default_params.get("right_scheme_idx", 0))
             self._set_combo_index("comboBox_left_freq", self._default_params.get("left_freq_idx", 0))
-            self._set_combo_index("comboBox_right_freq", self._default_params.get("right_freq_idx", 0))
 
         # 方案/频率下拉框：离线时不可选
         for name in (
             "comboBox_left_freq",
             "comboBox_left_scheme",
-            "comboBox_right_freq",
-            "comboBox_right_scheme",
         ):
             combo = get_ui_attr(self.ui, name)
             safe_call(self._logger, getattr(combo, "setEnabled", None), enabled)
@@ -414,8 +392,6 @@ class StimTestController:
         for btn_name in (
             "pushButton_left_turnbig",
             "pushButton_left_turnsmall",
-            "pushButton_right_turnbig",
-            "pushButton_right_turnsmall",
         ):
             button = get_ui_attr(self.ui, btn_name)
             safe_call(self._logger, getattr(button, "setEnabled", None), enabled)
@@ -439,24 +415,22 @@ class StimTestController:
 
     def _on_start_test_clicked(self) -> None:
         try:
-            # 进入开始测试时：左右通道档位重置为 0
+            # 进入开始测试时：当前侧档位重置为 0
             self._set_left_grade(0)
-            self._set_right_grade(0)
             # 同步保存（当前患者）
             self._save_current_params()
             # 下发一次当前参数（保证下位机拿到 current=0）
             self._send_left_channel_params(current_value=0)
-            self._send_right_channel_params(current_value=0)
 
             if self.stim_app:
-                self.stim_app.start_dual()
+                self.stim_app.start_treatment_channel(self._selected_leg_channel())
         finally:
             self._set_running_state(running=True)
 
     def _on_stop_test_clicked(self) -> None:
         try:
             if self.stim_app:
-                self.stim_app.stop_dual()
+                self.stim_app.stop_treatment_channel(self._selected_leg_channel())
         finally:
             self._set_running_state(running=False)
 
@@ -466,7 +440,7 @@ class StimTestController:
     def _stop_treatment_safe(self) -> None:
         try:
             if self.stim_app:
-                self.stim_app.stop_dual()
+                self.stim_app.stop_treatment_channel(self._selected_leg_channel())
         except Exception:
             self._logger.exception("停止治疗失败")
 
@@ -501,95 +475,29 @@ class StimTestController:
         if self._left_circle_widget is not None:
             self._left_circle_widget.set_level(grade)
 
-    def _get_right_grade(self) -> int:
-        label = get_ui_attr(self.ui, "label_right_grade")
-        if label is None:
-            return 0
-        text = label.text()
-        try:
-            grade_str = text.replace("级", "").strip()
-            return int(grade_str)
-        except (ValueError, AttributeError):
-            return 0
-
-    def _set_right_grade(self, grade: int) -> None:
-        label = get_ui_attr(self.ui, "label_right_grade")
-        if label is None:
-            return
-        grade = max(0, min(99, grade))
-        safe_call(self._logger, getattr(label, "setText", None), f"{grade}级")
-        if self._right_circle_widget is not None:
-            self._right_circle_widget.set_level(grade)
-
     def _send_left_channel_params(self, current_value: int) -> None:
         if not self.stim_app:
             return
+        channel = self._selected_leg_channel()
         scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
         scheme = 1 if scheme_idx <= 0 else 2
         freq_idx = self._get_combo_index("comboBox_left_freq") or 0
         frequency = int(freq_idx)
         current = max(0, min(0x99, int(current_value)))
         try:
-            self.stim_app.set_params(scheme=scheme, frequency=frequency, current=current, channel="left")
+            self.stim_app.set_params(scheme=scheme, frequency=frequency, current=current, channel=channel)
         except Exception:
-            self._logger.exception("下发左通道参数失败")
-
-    def _send_right_channel_params(self, current_value: int) -> None:
-        if not self.stim_app:
-            return
-        scheme_idx = self._get_combo_index("comboBox_right_scheme") or 0
-        scheme = 1 if scheme_idx <= 0 else 2
-        freq_idx = self._get_combo_index("comboBox_right_freq") or 0
-        frequency = int(freq_idx)
-        current = max(0, min(0x99, int(current_value)))
-        try:
-            self.stim_app.set_params(scheme=scheme, frequency=frequency, current=current, channel="right")
-        except Exception:
-            self._logger.exception("下发右通道参数失败")
+            self._logger.exception("下发%s通道参数失败", channel)
 
     # ----------------- UI 事件：下拉框/按钮 -----------------
     def _on_left_freq_changed(self, index: int) -> None:
-        if not self._is_syncing_scheme_freq:
-            self._is_syncing_scheme_freq = True
-            try:
-                self._set_combo_index("comboBox_right_freq", index)
-            finally:
-                self._is_syncing_scheme_freq = False
         current_grade = self._get_left_grade()
         self._send_left_channel_params(current_value=current_grade)
         self._save_current_params()
 
     def _on_left_scheme_changed(self, index: int) -> None:
-        if not self._is_syncing_scheme_freq:
-            self._is_syncing_scheme_freq = True
-            try:
-                self._set_combo_index("comboBox_right_scheme", index)
-            finally:
-                self._is_syncing_scheme_freq = False
         current_grade = self._get_left_grade()
         self._send_left_channel_params(current_value=current_grade)
-        self._save_current_params()
-
-    def _on_right_freq_changed(self, index: int) -> None:
-        if not self._is_syncing_scheme_freq:
-            self._is_syncing_scheme_freq = True
-            try:
-                self._set_combo_index("comboBox_left_freq", index)
-            finally:
-                self._is_syncing_scheme_freq = False
-        current_grade = self._get_right_grade()
-        self._send_right_channel_params(current_value=current_grade)
-        self._save_current_params()
-
-    def _on_right_scheme_changed(self, index: int) -> None:
-        if not self._is_syncing_scheme_freq:
-            self._is_syncing_scheme_freq = True
-            try:
-                self._set_combo_index("comboBox_left_scheme", index)
-            finally:
-                self._is_syncing_scheme_freq = False
-        current_grade = self._get_right_grade()
-        self._send_right_channel_params(current_value=current_grade)
         self._save_current_params()
 
     def _on_left_grade_increase(self) -> None:
@@ -610,26 +518,6 @@ class StimTestController:
         new_grade = current_grade - 1
         self._set_left_grade(new_grade)
         self._send_left_channel_params(current_value=new_grade)
-        self._save_current_params()
-
-    def _on_right_grade_increase(self) -> None:
-        if not self._test_running:
-            TipsDialog.show_tips(self.ui, "请先点击“开始测试”按钮")
-            return
-        current_grade = self._get_right_grade()
-        new_grade = current_grade + 1
-        self._set_right_grade(new_grade)
-        self._send_right_channel_params(current_value=new_grade)
-        self._save_current_params()
-
-    def _on_right_grade_decrease(self) -> None:
-        if not self._test_running:
-            TipsDialog.show_tips(self.ui, "请先点击“开始测试”按钮")
-            return
-        current_grade = self._get_right_grade()
-        new_grade = current_grade - 1
-        self._set_right_grade(new_grade)
-        self._send_right_channel_params(current_value=new_grade)
         self._save_current_params()
 
     # ----------------- 缓存：患者绑定 -----------------
@@ -662,19 +550,22 @@ class StimTestController:
             return None
         return str(patient.get("PatientId") or patient.get("Name") or "")
 
-    def _apply_cached_params(self) -> None:
+    def _load_current_treat_params(self) -> Optional[PatientTreatParams]:
+        pid = self._current_patient_id
+        if not pid or not self.session_app:
+            return None
+        try:
+            return self.session_app.load_treat_params(pid)
+        except Exception:
+            self._logger.exception("加载治疗参数失败: %s", pid)
+            return None
+
+    def _apply_cached_params(self, channel: Optional[str] = None) -> None:
         pid = self._current_patient_id
         if not pid:
             self._set_left_grade(0)
-            self._set_right_grade(0)
             return
-        params = None
-        if self.session_app:
-            try:
-                params = self.session_app.load_treat_params(pid)
-            except Exception:
-                self._logger.exception("加载治疗参数失败: %s", pid)
-                params = None
+        params = self._load_current_treat_params()
 
         if params is None:
             params = PatientTreatParams(
@@ -682,9 +573,9 @@ class StimTestController:
                 left_grade=0,
                 right_grade=0,
                 left_scheme_idx=self._default_params.get("left_scheme_idx", 0),
-                right_scheme_idx=self._default_params.get("right_scheme_idx", 0),
+                right_scheme_idx=self._default_params.get("left_scheme_idx", 0),
                 left_freq_idx=self._default_params.get("left_freq_idx", 0),
-                right_freq_idx=self._default_params.get("right_freq_idx", 0),
+                right_freq_idx=self._default_params.get("left_freq_idx", 0),
             )
             if self.session_app:
                 try:
@@ -692,27 +583,58 @@ class StimTestController:
                 except Exception:
                     self._logger.exception("初始化治疗参数失败: %s", pid)
 
+        selected = channel or self._selected_leg_channel()
+        if selected == "right":
+            self._set_left_grade(getattr(params, "right_grade", 0))
+            self._set_combo_index("comboBox_left_scheme", getattr(params, "right_scheme_idx", 0))
+            self._set_combo_index("comboBox_left_freq", getattr(params, "right_freq_idx", 0))
+            return
         self._set_left_grade(getattr(params, "left_grade", 0))
-        self._set_right_grade(getattr(params, "right_grade", 0))
         self._set_combo_index("comboBox_left_scheme", getattr(params, "left_scheme_idx", 0))
-        self._set_combo_index("comboBox_right_scheme", getattr(params, "right_scheme_idx", 0))
         self._set_combo_index("comboBox_left_freq", getattr(params, "left_freq_idx", 0))
-        self._set_combo_index("comboBox_right_freq", getattr(params, "right_freq_idx", 0))
 
     def _save_current_params(self) -> None:
         pid = self._current_patient_id
         if not pid or not self.session_app:
             return
         try:
+            params = self._load_current_treat_params()
+            if params is None:
+                params = PatientTreatParams(
+                    patient_id=pid,
+                    left_grade=0,
+                    right_grade=0,
+                    left_scheme_idx=self._default_params.get("left_scheme_idx", 0),
+                    right_scheme_idx=self._default_params.get("left_scheme_idx", 0),
+                    left_freq_idx=self._default_params.get("left_freq_idx", 0),
+                    right_freq_idx=self._default_params.get("left_freq_idx", 0),
+                )
+            current_grade = self._get_left_grade()
+            current_scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
+            current_freq_idx = self._get_combo_index("comboBox_left_freq") or 0
+            if self._selected_leg_channel() == "right":
+                left_grade = getattr(params, "left_grade", 0)
+                left_scheme_idx = getattr(params, "left_scheme_idx", self._default_params.get("left_scheme_idx", 0))
+                left_freq_idx = getattr(params, "left_freq_idx", self._default_params.get("left_freq_idx", 0))
+                right_grade = current_grade
+                right_scheme_idx = current_scheme_idx
+                right_freq_idx = current_freq_idx
+            else:
+                left_grade = current_grade
+                left_scheme_idx = current_scheme_idx
+                left_freq_idx = current_freq_idx
+                right_grade = getattr(params, "right_grade", 0)
+                right_scheme_idx = getattr(params, "right_scheme_idx", self._default_params.get("left_scheme_idx", 0))
+                right_freq_idx = getattr(params, "right_freq_idx", self._default_params.get("left_freq_idx", 0))
             self.session_app.save_treat_params(
                 PatientTreatParams(
                     patient_id=pid,
-                    left_grade=self._get_left_grade(),
-                    right_grade=self._get_right_grade(),
-                    left_scheme_idx=self._get_combo_index("comboBox_left_scheme") or 0,
-                    right_scheme_idx=self._get_combo_index("comboBox_right_scheme") or 0,
-                    left_freq_idx=self._get_combo_index("comboBox_left_freq") or 0,
-                    right_freq_idx=self._get_combo_index("comboBox_right_freq") or 0,
+                    left_grade=left_grade,
+                    right_grade=right_grade,
+                    left_scheme_idx=left_scheme_idx,
+                    right_scheme_idx=right_scheme_idx,
+                    left_freq_idx=left_freq_idx,
+                    right_freq_idx=right_freq_idx,
                 )
             )
         except Exception:
