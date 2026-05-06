@@ -236,6 +236,8 @@ class StimTestController:
         safe_connect(self._logger, getattr(left_scheme, "currentIndexChanged", None), self._on_left_scheme_changed)
         pulse_width = get_ui_attr(self.ui, "comboBox_pulse_width")
         safe_connect(self._logger, getattr(pulse_width, "currentIndexChanged", None), self._on_pulse_width_changed)
+        reset_btn = get_ui_attr(self.ui, "pushButton_reset_2")
+        safe_connect(self._logger, getattr(reset_btn, "clicked", None), self._on_reset_stim_clicked)
 
         self._init_left_circle_widget()
         self._hide_right_channel_widgets()
@@ -344,6 +346,22 @@ class StimTestController:
             self._send_advanced_params(current_value=0)
         except Exception:
             self._logger.exception("清零档位后下发高级参数失败")
+        self._save_current_params()
+
+    def _on_reset_stim_clicked(self) -> None:
+        """重置电刺激页控件与运行状态。"""
+        try:
+            # 先确保下位机回到停止态，避免 UI 与设备状态不一致。
+            self._send_advanced_params(current_value=self._CURRENT_MODE_STOP)
+        except Exception:
+            self._logger.exception("重置时发送停止高级参数失败")
+
+        self._set_running_state(running=False)
+        self._set_left_grade(0)
+        self._set_combo_index("comboBox_left_scheme", self._default_params.get("left_scheme_idx", 0))
+        self._set_freq_value(self._default_params.get("left_freq_idx", self._FREQ_DEFAULT_MS))
+        self._set_combo_index("comboBox_pulse_width", 0)
+        self._reset_time_scrollbars()
         self._save_current_params()
 
     # ----------------- UI 状态管理 -----------------
@@ -831,6 +849,23 @@ QScrollBar::sub-line:horizontal {
 
     def _default_time_tenths(self, name: str) -> int:
         return self._normalize_time_tenths(self._TIME_DEFAULT_TENTHS_BY_SCROLLBAR.get(name, self._TIME_DEFAULT_TENTHS))
+
+    def _reset_time_scrollbars(self) -> None:
+        for name in (
+            "horizontalScrollBar_time_stim",
+            "horizontalScrollBar_time_rise",
+            "horizontalScrollBar_time_down",
+        ):
+            scrollbar = get_ui_attr(self.ui, name)
+            if scrollbar is None:
+                continue
+            try:
+                old_block = scrollbar.blockSignals(True)
+                scrollbar.setValue(self._default_time_tenths(name))
+                scrollbar.blockSignals(old_block)
+                self._update_time_scrollbar_display(name, scrollbar.value())
+            except Exception:
+                self._logger.exception("重置时间拖条失败: %s", name)
 
     def _normalize_time_tenths(self, value: int | None) -> int:
         if value is None:
