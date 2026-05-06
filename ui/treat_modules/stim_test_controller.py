@@ -340,7 +340,10 @@ class StimTestController:
     def reset_stimulus_grades(self) -> None:
         """清零单通道刺激强度（0级）并同步到硬件与 session。"""
         self._set_left_grade(0)
-        self._send_left_channel_params(current_value=0)
+        try:
+            self._send_advanced_params(current_value=0)
+        except Exception:
+            self._logger.exception("清零档位后下发高级参数失败")
         self._save_current_params()
 
     # ----------------- UI 状态管理 -----------------
@@ -489,15 +492,6 @@ class StimTestController:
         if self._left_circle_widget is not None:
             self._left_circle_widget.set_level(grade)
 
-    def _send_left_channel_params(self, current_value: int) -> None:
-        if not self.stim_app:
-            return
-        try:
-            self._send_basic_params()
-            self._send_advanced_params(current_value=current_value)
-        except Exception:
-            self._logger.exception("下发%s参数失败", self._selected_leg_channel())
-
     def _send_basic_params(self) -> None:
         if not self.stim_app:
             return
@@ -560,8 +554,10 @@ class StimTestController:
         self._update_freq_value_label(value)
 
     def _on_left_freq_released(self) -> None:
-        current_grade = self._get_left_grade()
-        self._send_left_channel_params(current_value=current_grade)
+        try:
+            self._send_basic_params()
+        except Exception:
+            self._logger.exception("频率变更下发基础参数失败")
         self._save_current_params()
 
     def _on_left_freq_changed(self, index: int) -> None:
@@ -569,13 +565,17 @@ class StimTestController:
         self._on_left_freq_released()
 
     def _on_left_scheme_changed(self, index: int) -> None:
-        current_grade = self._get_left_grade()
-        self._send_left_channel_params(current_value=current_grade)
+        try:
+            self._send_basic_params()
+        except Exception:
+            self._logger.exception("方案变更下发基础参数失败")
         self._save_current_params()
 
     def _on_pulse_width_changed(self, index: int) -> None:
-        current_grade = self._get_left_grade()
-        self._send_left_channel_params(current_value=current_grade)
+        try:
+            self._send_basic_params()
+        except Exception:
+            self._logger.exception("脉宽变更下发基础参数失败")
 
     def _on_left_grade_increase(self) -> None:
         if not self._test_running:
