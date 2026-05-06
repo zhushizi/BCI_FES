@@ -693,6 +693,11 @@ class StimTestController:
                     getattr(scrollbar, "valueChanged", None),
                     lambda value, n=name: self._on_time_scrollbar_changed(n, value),
                 )
+                safe_connect(
+                    self._logger,
+                    getattr(scrollbar, "sliderReleased", None),
+                    self._on_time_scrollbar_slider_released,
+                )
                 self._ensure_time_scrollbar_aux_widgets(name)
                 self._update_time_scrollbar_display(name, scrollbar.value())
             except Exception:
@@ -805,11 +810,24 @@ QScrollBar::sub-line:horizontal {
     def _on_time_scrollbar_changed(self, name: str, value: int) -> None:
         self._update_time_scrollbar_display(name, value)
 
+    def _on_time_scrollbar_slider_released(self) -> None:
+        """拖动滑条松手后下发 0x02 高级参数帧（刺激/上升/下降时间）。"""
+        try:
+            self._send_advanced_params(current_value=self._get_left_grade())
+            self._save_current_params()
+        except Exception:
+            self._logger.exception("时间拖条松手下发失败")
+
     def _step_time_scrollbar(self, name: str, step: int) -> None:
         scrollbar = get_ui_attr(self.ui, name)
         if scrollbar is None:
             return
         scrollbar.setValue(self._normalize_time_tenths(int(scrollbar.value()) + int(step)))
+        try:
+            self._send_advanced_params(current_value=self._get_left_grade())
+            self._save_current_params()
+        except Exception:
+            self._logger.exception("时间步进下发失败")
 
     def _default_time_tenths(self, name: str) -> int:
         return self._normalize_time_tenths(self._TIME_DEFAULT_TENTHS_BY_SCROLLBAR.get(name, self._TIME_DEFAULT_TENTHS))
