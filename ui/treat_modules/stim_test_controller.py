@@ -48,6 +48,14 @@ class StimTestController:
         "QPushButton { background-color: rgb(240, 242, 245); color: rgb(120, 120, 120); "
         "border: 1px solid rgb(200, 200, 200); border-radius: 10px; }"
     )
+    _STYLE_LEG_COMPLETED = (
+        "QPushButton { background-color: rgb(232, 245, 233); color: rgb(46, 125, 50); "
+        "border: 2px solid rgb(129, 199, 132); border-radius: 10px; }"
+    )
+    _STYLE_LEG_COMPLETED_SELECTED = (
+        "QPushButton { background-color: rgb(220, 237, 220); color: rgb(27, 94, 32); "
+        "border: 2px solid rgb(76, 175, 80); border-radius: 10px; }"
+    )
 
     def __init__(self, ui, session_app: Optional[SessionApp] = None, stim_app: Optional[StimTestApp] = None):
         self.ui = ui
@@ -58,6 +66,8 @@ class StimTestController:
         self._current_patient_for_leg: dict | None = None
         self._dual_leg_flow_step: int = 0
         self._active_leg_channel: str = "left"
+        # 仅在本会话内对该侧点过「停止测试」且档位>0 后为 True，用于标绿（避免仅靠缓存档位一切换就绿）
+        self._stim_leg_stop_completed: dict[str, bool] = {"left": False, "right": False}
 
         # True=开始状态（stop可用/start不可用/next不可用）；False=停止状态（start可用/stop不可用/next可用）
         self._test_running = False
@@ -138,6 +148,57 @@ class StimTestController:
         btn = get_ui_attr(self.ui, "pushButton_next")
         safe_call(self._logger, getattr(btn, "setText", None), text)
 
+    def _grade_for_leg(self, channel: str) -> int:
+        """读取某一侧档位：当前编辑中的腿用界面值，另一侧用 session 缓存。"""
+        mode = self._patient_leg_display_mode()
+        if mode != "both":
+            return self._get_left_grade() if self._selected_leg_channel() == channel else 0
+        sel = self._selected_leg_channel()
+        if channel == sel:
+            return self._get_left_grade()
+        params = self._load_current_treat_params()
+        if not params:
+            return 0
+        return int(getattr(params, "left_grade" if channel == "left" else "right_grade", 0) or 0)
+
+    def _leg_show_completed_green(self, channel: str) -> bool:
+        """标绿：该侧档位>0 + 本会话内已对该侧执行过停止测试；测试中当前侧不绿。"""
+        if self._grade_for_leg(channel) <= 0:
+            return False
+        if not self._stim_leg_stop_completed.get(channel, False):
+            return False
+        if self._test_running and self._selected_leg_channel() == channel:
+            return False
+        return True
+
+    def _reset_stim_leg_completion_flags(self) -> None:
+        self._stim_leg_stop_completed = {"left": False, "right": False}
+
+    def _style_for_leg_button(self, channel: str, is_selected: bool) -> str:
+        if self._leg_show_completed_green(channel):
+            return self._STYLE_LEG_COMPLETED_SELECTED if is_selected else self._STYLE_LEG_COMPLETED
+        if is_selected:
+            return self._STYLE_LEG_SELECTED
+        return self._STYLE_LEG_NORMAL
+
+    def _refresh_stim_leg_styles(self) -> None:
+        btn_l = get_ui_attr(self.ui, "pushButton_stim_leg_left")
+        btn_r = get_ui_attr(self.ui, "pushButton_stim_leg_right")
+        mode = self._patient_leg_display_mode()
+        sel = self._selected_leg_channel()
+        if mode == "left":
+            if btn_l:
+                safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._style_for_leg_button("left", True))
+            return
+        if mode == "right":
+            if btn_r:
+                safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._style_for_leg_button("right", True))
+            return
+        if btn_l:
+            safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._style_for_leg_button("left", sel == "left"))
+        if btn_r:
+            safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._style_for_leg_button("right", sel == "right"))
+
     def _set_leg_highlight(self, left_selected: bool) -> None:
         btn_l = get_ui_attr(self.ui, "pushButton_stim_leg_left")
         btn_r = get_ui_attr(self.ui, "pushButton_stim_leg_right")
@@ -146,25 +207,20 @@ class StimTestController:
             self._active_leg_channel = "left"
             if btn_l:
                 safe_call(self._logger, getattr(btn_l, "setChecked", None), True)
-                safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_SELECTED)
-            if btn_r:
-                safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_NORMAL)
+            self._refresh_stim_leg_styles()
             return
         if mode == "right":
             self._active_leg_channel = "right"
             if btn_r:
                 safe_call(self._logger, getattr(btn_r, "setChecked", None), True)
-                safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_SELECTED)
-            if btn_l:
-                safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_NORMAL)
+            self._refresh_stim_leg_styles()
             return
         self._active_leg_channel = "left" if left_selected else "right"
         if btn_l:
             safe_call(self._logger, getattr(btn_l, "setChecked", None), left_selected)
-            safe_call(self._logger, getattr(btn_l, "setStyleSheet", None), self._STYLE_LEG_SELECTED if left_selected else self._STYLE_LEG_NORMAL)
         if btn_r:
             safe_call(self._logger, getattr(btn_r, "setChecked", None), not left_selected)
-            safe_call(self._logger, getattr(btn_r, "setStyleSheet", None), self._STYLE_LEG_NORMAL if left_selected else self._STYLE_LEG_SELECTED)
+        self._refresh_stim_leg_styles()
 
     def handle_dual_leg_next_click(self) -> bool:
         """双腿患者需先点“确认”，再点“下一项”才允许跳页。"""
@@ -326,6 +382,7 @@ class StimTestController:
                     self.session_app.set_current_patient("")
             except Exception:
                 self._logger.exception("设置当前患者失败")
+        self._reset_stim_leg_completion_flags()
         self.refresh_stim_leg_bar()
         self._apply_cached_params()
 
@@ -348,6 +405,8 @@ class StimTestController:
         except Exception:
             self._logger.exception("清零档位后下发高级参数失败")
         self._save_current_params()
+        self._reset_stim_leg_completion_flags()
+        self._refresh_stim_leg_styles()
 
     def _on_reset_stim_clicked(self) -> None:
         """重置电刺激页控件与运行状态。"""
@@ -364,6 +423,8 @@ class StimTestController:
         self._set_combo_index("comboBox_pulse_width", 0)
         self._reset_time_scrollbars()
         self._save_current_params()
+        self._reset_stim_leg_completion_flags()
+        self._refresh_stim_leg_styles()
 
     # ----------------- UI 状态管理 -----------------
     def _set_default_freq(self) -> None:
@@ -398,6 +459,8 @@ class StimTestController:
             button = get_ui_attr(self.ui, btn_name)
             safe_call(self._logger, getattr(button, "setEnabled", None), self._hardware_online)
 
+        self._refresh_stim_leg_styles()
+
     def set_hardware_online(self, is_online: bool) -> None:
         """根据下位机在线状态更新控件可用性"""
         self._hardware_online = bool(is_online)
@@ -412,6 +475,7 @@ class StimTestController:
             self._set_left_grade(0)
             self._set_combo_index("comboBox_left_scheme", self._default_params.get("left_scheme_idx", 0))
             self._set_freq_value(self._default_params.get("left_freq_idx", self._FREQ_DEFAULT_MS))
+            self._reset_stim_leg_completion_flags()
 
         # 方案/频率控件：离线时不可选
         for name in (
@@ -442,6 +506,7 @@ class StimTestController:
                 enabled,
             )
 
+        self._refresh_stim_leg_styles()
 
     # ----------------- 开始/停止测试（同一按钮切换）-----------------
     def _on_start_stop_test_clicked(self) -> None:
@@ -453,6 +518,7 @@ class StimTestController:
 
     def _on_start_test_clicked(self) -> None:
         try:
+            self._stim_leg_stop_completed[self._selected_leg_channel()] = False
             # 进入开始测试时：当前侧档位重置为 0
             self._set_left_grade(0)
             # 同步保存（当前患者）
@@ -468,6 +534,8 @@ class StimTestController:
             # 停止测试：发送高级参数帧；第7位使用 0xFF 表示结束当前模式。
             self._send_advanced_params(current_value=self._CURRENT_MODE_STOP)
         finally:
+            ch = self._selected_leg_channel()
+            self._stim_leg_stop_completed[ch] = self._get_left_grade() > 0
             self._set_running_state(running=False)
 
     def stop_safe(self) -> None:
@@ -606,6 +674,7 @@ class StimTestController:
         self._set_left_grade(new_grade)
         self._send_advanced_params(current_value=self._get_left_grade())
         self._save_current_params()
+        self._refresh_stim_leg_styles()
 
     def _on_left_grade_decrease(self) -> None:
         if not self._test_running:
@@ -616,6 +685,7 @@ class StimTestController:
         self._set_left_grade(new_grade)
         self._send_advanced_params(current_value=self._get_left_grade())
         self._save_current_params()
+        self._refresh_stim_leg_styles()
 
     # ----------------- 缓存：患者绑定 -----------------
     def _get_combo_index(self, name: str) -> int | None:
