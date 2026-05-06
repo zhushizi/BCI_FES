@@ -1853,7 +1853,7 @@ border-image: url(:/main/pic/main_patient_off.png);</string>
         </rect>
        </property>
        <property name="visible">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="styleSheet">
         <string notr="true">QFrame#widget_stim_leg_bar { background-color: rgb(248, 250, 252); border: 1px solid rgb(220, 228, 240); border-radius: 12px; }</string>
