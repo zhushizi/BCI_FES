@@ -38,6 +38,7 @@ class StimTestController:
     _CURRENT_MODE_START = 0xEF
     _CURRENT_MODE_STOP = 0xFF
     _CURRENT_MAX_OUTPUT = 0x50
+    _ADVANCED_RESERVED_STIM_PAGE = 0xFF
 
     _STYLE_LEG_SELECTED = (
         "QPushButton { background-color: rgb(219, 233, 247); color: rgb(88, 122, 244); "
@@ -529,6 +530,7 @@ class StimTestController:
             stim_time=self._get_time_scrollbar_value("horizontalScrollBar_time_stim"),
             rise_time=self._get_time_scrollbar_value("horizontalScrollBar_time_rise"),
             down_time=self._get_time_scrollbar_value("horizontalScrollBar_time_down"),
+            reserved_byte=self._ADVANCED_RESERVED_STIM_PAGE,
         )
 
     def _get_stim_device_code(self) -> int:

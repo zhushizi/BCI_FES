@@ -71,6 +71,7 @@ class StimTestApp:
         stim_time: int,
         rise_time: int,
         down_time: int,
+        reserved_byte: int = 0x00,
     ) -> bool:
         return self.service.send_advanced_params(
             device=device,
@@ -78,5 +79,6 @@ class StimTestApp:
             stim_time=stim_time,
             rise_time=rise_time,
             down_time=down_time,
+            reserved_byte=reserved_byte,
         )
 

@@ -41,12 +41,13 @@ class StimFrame:
         rise_time: int,
         down_time: int,
         treatment_mode: int = TREATMENT_MODE,
+        reserved_byte: int = RESERVED_BYTE,
     ) -> bytes:
         payload = [
             cls._byte(treatment_mode),
             cls._byte(current),
             cls._byte(stim_time),
-            cls.RESERVED_BYTE,
+            cls._byte(reserved_byte),
             cls._byte(rise_time),
             cls._byte(down_time),
         ]

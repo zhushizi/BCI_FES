@@ -195,21 +195,25 @@ class StimTestService:
         stim_time: int,
         rise_time: int,
         down_time: int,
+        reserved_byte: int = StimFrame.RESERVED_BYTE,
     ) -> bool:
         self._validate_device(device)
         current = self._normalize_current(current)
         stim_time = self._normalize_byte(stim_time, "刺激时间")
         rise_time = self._normalize_byte(rise_time, "上升时间")
         down_time = self._normalize_byte(down_time, "下降时间")
+        reserved_byte = self._normalize_byte(reserved_byte, "保留位")
         return self._send_advanced(
             device=device,
             current=current,
             stim_time=stim_time,
             rise_time=rise_time,
             down_time=down_time,
+            reserved_byte=reserved_byte,
             desc=(
                 f"高级参数 device=0x{device:02X}, current=0x{current:02X}, "
-                f"stim_time={stim_time}, rise_time={rise_time}, down_time={down_time}"
+                f"stim_time={stim_time}, reserved=0x{reserved_byte:02X}, "
+                f"rise_time={rise_time}, down_time={down_time}"
             ),
         )
 
@@ -251,7 +255,15 @@ class StimTestService:
             frequency=frequency,
         )
 
-    def _build_advanced_frame(self, device: int, current: int, stim_time: int, rise_time: int, down_time: int) -> bytes:
+    def _build_advanced_frame(
+        self,
+        device: int,
+        current: int,
+        stim_time: int,
+        rise_time: int,
+        down_time: int,
+        reserved_byte: int = StimFrame.RESERVED_BYTE,
+    ) -> bytes:
         """
         高级参数帧：
         [55 AA] [0D] [设备位置] [0x02] [治疗模式] [电流/启停模式] [刺激时间] [保留] [上升时间] [下降时间] [校验2字节]
@@ -262,6 +274,7 @@ class StimTestService:
             stim_time=stim_time,
             rise_time=rise_time,
             down_time=down_time,
+            reserved_byte=reserved_byte,
         )
 
     @classmethod
@@ -344,6 +357,7 @@ class StimTestService:
         stim_time: int,
         rise_time: int,
         down_time: int,
+        reserved_byte: int = StimFrame.RESERVED_BYTE,
         desc: str,
     ) -> bool:
         packet = self._build_advanced_frame(
@@ -352,6 +366,7 @@ class StimTestService:
             stim_time=stim_time,
             rise_time=rise_time,
             down_time=down_time,
+            reserved_byte=reserved_byte,
         )
         success = self.serial_hw.send_data(packet)
         self._log_send(packet, success, desc=desc)
