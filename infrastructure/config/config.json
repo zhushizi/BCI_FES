@@ -13,22 +13,28 @@
     
     "ssmvep_exe_gou_left": "C:\\Users\\24114\\Desktop\\ParadigmSmvep\\ParadigmOne.exe",
     "ssmvep_exe_gou_right": "C:\\Users\\24114\\Desktop\\ParadigmSmvep\\ParadigmOne.exe",
+    "ssmvep_exe_gou": "C:\\Users\\24114\\Desktop\\LegParadigmSmvep\\ParadigmOne.exe",
 
     "ssvep_exe_gou_left": "C:\\Users\\24114\\Desktop\\ParadigmOne\\ParadigmOne.exe",
     "ssvep_exe_gou_right": "C:\\Users\\24114\\Desktop\\ParadigmOne\\ParadigmOne.exe",
+    "ssvep_exe_gou": "C:\\Users\\24114\\Desktop\\LegParadigmOne\\ParadigmOne.exe",
 
     "mi_exe_gou_left": "C:\\Users\\24114\\Desktop\\mi\\FES左勾脚\\ParadigmOne.exe",
     "mi_exe_gou_right": "C:\\Users\\24114\\Desktop\\mi\\FES右勾脚\\ParadigmOne.exe",
+    "mi_exe_gou": "C:\\Users\\24114\\Desktop\\LegParadigmMI\\ParadigmOne.exe",
 
     "ssmvep_exe_tai_left": "C:\\Users\\24114\\Desktop\\LegParadigmSmvep\\ParadigmOne.exe",
     "ssmvep_exe_tai_right": "C:\\Users\\24114\\Desktop\\LegParadigmSmvep\\ParadigmOne.exe",
+    "ssmvep_exe_tai": "C:\\Users\\24114\\Desktop\\LegParadigmSmvep\\ParadigmOne.exe",
 
     "ssvep_exe_tai_left": "C:\\Users\\24114\\Desktop\\LegParadigmOne\\ParadigmOne.exe",
     "ssvep_exe_tai_right": "C:\\Users\\24114\\Desktop\\LegParadigmOne\\ParadigmOne.exe",
+    "ssvep_exe_tai": "C:\\Users\\24114\\Desktop\\LegParadigmOne\\ParadigmOne.exe",
 
     "mi_exe_tai_left": "C:\\Users\\24114\\Desktop\\mi\\FES左踢脚\\ParadigmOne.exe",
     "mi_exe_tai_right": "C:\\Users\\24114\\Desktop\\mi\\FES右踢脚\\ParadigmOne.exe",
-
+    "mi_exe_tai": "C:\\Users\\24114\\Desktop\\LegParadigmMI\\ParadigmOne.exe",
+    
     "logging": {
         "level": "INFO",
         "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",

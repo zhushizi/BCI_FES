@@ -156,17 +156,11 @@ class TrainingMainController:
             str(stim_position_raw).strip().lower(), stim_position_raw or ""
         )
 
-        # 刺激方案：转 int 加一显示为「方案2」；刺激频率按 ms 显示。
-        def _int_plus_one_unit(raw, unit: str, unit_before: bool = False) -> str:
-            if raw is None or raw == "":
-                return ""
-            try:
-                n = int(raw)
-                val = str(n + 1)
-                return f"{unit}{val}" if unit_before else f"{val}{unit}"
-            except (TypeError, ValueError):
-                return ""
+        leg_raw = (patient or {}).get("Leg", "") if patient else ""
+        leg_side = self._map_leg_side(leg_raw)
+        stim_position = f"{leg_side}{stim_position}" if stim_position else leg_side
 
+        # 波形：StimSchemeAB 存的是下拉索引，0/1 -> 对称波/非对称波；刺激频率按 ms 显示。
         def _fmt_freq_ms(raw) -> str:
             if raw is None or raw == "":
                 return ""
@@ -175,14 +169,21 @@ class TrainingMainController:
             except (TypeError, ValueError):
                 return ""
 
-        scheme_display = _int_plus_one_unit(stim_scheme, "方案", unit_before=True) or "方案1"
+        waveform_display = self._map_waveform(stim_scheme) or "对称波"
         freq_display = _fmt_freq_ms(stim_freq) or "20ms"
+        pulse_width_display = self._read_pulse_width_display() or "50us"
 
         def _fmt(v) -> str:
             return "" if v is None or v == "" else str(v)
 
         stim_a_display = _fmt(stim_a) if _fmt(stim_a) else "0"
         stim_b_display = _fmt(stim_b) if _fmt(stim_b) else "0"
+        if leg_side == "左":
+            stim_intensity_display = stim_a_display
+        elif leg_side == "右":
+            stim_intensity_display = stim_b_display
+        else:
+            stim_intensity_display = stim_a_display if stim_a_display == stim_b_display else f"{stim_a_display}/{stim_b_display}"
 
         def _esc(s: str) -> str:
             return html.escape(s) if s else ""
@@ -191,12 +192,48 @@ class TrainingMainController:
         line1 = f"姓名: {_esc(_fmt(name))}{gap}性别: {_esc(_fmt(sex))}{gap}年龄: {_esc(_fmt(age))}"
         rest = [
             f"范式: {_esc(_fmt(paradigm))}{gap}刺激部位: {_esc(_fmt(stim_position))}",
-            f"A通道刺激强度: {_esc(stim_a_display)}{gap}B通道刺激强度: {_esc(stim_b_display)}",
-            f"刺激方案: {_esc(scheme_display)}{gap}刺激频率: {_esc(freq_display)}",
+            f"刺激强度: {_esc(stim_intensity_display)}{gap}波形: {_esc(waveform_display)}",
+            f"脉冲宽度: {_esc(pulse_width_display)}{gap}刺激频率: {_esc(freq_display)}",
         ]
         html_text = f'<div style="line-height: 2.0;"><b style="font-weight: bold;">{line1}</b><br/>' + "<br/>".join(rest) + "</div>"
         safe_call(self._logger, label.setTextFormat, Qt.TextFormat.RichText)
         safe_call(self._logger, label.setText, html_text)
+
+    @staticmethod
+    def _map_leg_side(leg: str) -> str:
+        text = str(leg or "").strip()
+        low = text.lower()
+        if text == "左腿" or ("左" in text and "右" not in text) or ("left" in low and "right" not in low):
+            return "左"
+        if text == "右腿" or ("右" in text and "左" not in text) or ("right" in low and "left" not in low):
+            return "右"
+        if text == "双腿" or "双" in text or ("左" in text and "右" in text) or "both" in low:
+            return "双"
+        return "双"
+
+    @staticmethod
+    def _map_waveform(raw) -> str:
+        if raw is None or raw == "":
+            return ""
+        try:
+            idx = int(raw)
+            return "对称波" if idx <= 0 else "非对称波"
+        except (TypeError, ValueError):
+            return ""
+
+    def _read_pulse_width_display(self) -> str:
+        combo = get_ui_attr(self.ui, "comboBox_pulse_width")
+        if combo is None:
+            return ""
+        try:
+            text = str(combo.currentText() or "").strip()
+            if text:
+                return text
+            idx = int(combo.currentIndex())
+            # 下拉为空时回退为约定值：0->50us, 1->100us ...
+            return f"{(idx + 1) * 50}us" if idx >= 0 else ""
+        except Exception:
+            return ""
 
     def _apply_countdown_emphasis_style(self) -> None:
         """训练时长标题与倒计时值使用醒目的红色加粗样式。"""
