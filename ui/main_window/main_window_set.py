@@ -29,6 +29,8 @@ class SetPageController:
         self.nes_port = None
         self.hardware_config_app = hardware_config_app
         self._endpoint_volume = None
+        self._audio_endpoint_unavailable = False
+        self._audio_endpoint_warned = False
         self._muted = False
         self._volume_before_mute = None
         self._init_audio_endpoint()
@@ -134,6 +136,8 @@ class SetPageController:
     def _ensure_audio_endpoint(self) -> bool:
         if self._endpoint_volume is not None:
             return True
+        if self._audio_endpoint_unavailable:
+            return False
         try:
             from comtypes import CLSCTX_ALL
             from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
@@ -145,7 +149,10 @@ class SetPageController:
             self._endpoint_volume = interface.QueryInterface(IAudioEndpointVolume)
             return True
         except Exception as exc:
-            self.logger.warning("初始化系统音量接口失败: %s", exc)
+            self._audio_endpoint_unavailable = True
+            if not self._audio_endpoint_warned:
+                self.logger.warning("初始化系统音量接口失败，已降级为兼容模式: %s", exc)
+                self._audio_endpoint_warned = True
             return False
 
     def _get_system_volume_percent(self) -> int | None:
