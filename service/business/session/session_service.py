@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -36,6 +37,10 @@ class SessionService:
         stim_channel_b: Optional[int] = None,
         stim_scheme_ab: Optional[int] = None,
         stim_freq_ab: Optional[int] = None,
+        stim_intensity: str = "",
+        stim_waveform: str = "",
+        stim_pulse_width: str = "",
+        stim_side: str = "",
         stim_position: str = "",
         paradigm: str = "",
         total_train_duration: str = "",
@@ -49,6 +54,10 @@ class SessionService:
             stim_channel_b=stim_channel_b,
             stim_scheme_ab=stim_scheme_ab,
             stim_freq_ab=stim_freq_ab,
+            stim_intensity=stim_intensity,
+            stim_waveform=stim_waveform,
+            stim_pulse_width=stim_pulse_width,
+            stim_side=stim_side,
             stim_position=stim_position,
             paradigm=paradigm,
             total_train_duration=total_train_duration,
@@ -189,9 +198,21 @@ class SessionService:
         right_scheme_idx: Optional[int] = None,
         left_freq_idx: Optional[int] = None,
         right_freq_idx: Optional[int] = None,
+        left_pulse_width_idx: Optional[int] = None,
+        right_pulse_width_idx: Optional[int] = None,
+        leg_side: str = "",
     ) -> bool:
         scheme_ab = left_scheme_idx if left_scheme_idx is not None else right_scheme_idx
         freq_ab = left_freq_idx if left_freq_idx is not None else right_freq_idx
+        side = str(leg_side or "").strip()
+        stim_intensity = self._merge_intensity(left_grade, right_grade, side)
+        stim_waveform = self._map_waveform(scheme_ab)
+        stim_pulse_width = self._merge_pulse_width(left_pulse_width_idx, right_pulse_width_idx, side)
+        train_params_payload = {
+            "left_pulse_width_idx": left_pulse_width_idx,
+            "right_pulse_width_idx": right_pulse_width_idx,
+        }
+        train_params = json.dumps(train_params_payload, ensure_ascii=False)
         return self._patient_treat_repo.upsert_patient_treat_session(
             session_id=session_id,
             patient_id=patient_id,
@@ -199,7 +220,53 @@ class SessionService:
             stim_channel_b=None if right_grade is None else int(right_grade),
             stim_scheme_ab=None if scheme_ab is None else int(scheme_ab),
             stim_freq_ab=None if freq_ab is None else int(freq_ab),
+            stim_intensity=stim_intensity,
+            stim_waveform=stim_waveform,
+            stim_pulse_width=stim_pulse_width,
+            stim_side=side,
+            train_params=train_params,
         )
+
+    @staticmethod
+    def _map_waveform(value: Optional[int]) -> str:
+        if value is None:
+            return ""
+        try:
+            return "对称波" if int(value) <= 0 else "非对称波"
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _map_pulse_width(idx: Optional[int]) -> str:
+        if idx is None:
+            return ""
+        try:
+            return f"{(int(idx) + 1) * 50}us"
+        except Exception:
+            return ""
+
+    def _merge_pulse_width(self, left_idx: Optional[int], right_idx: Optional[int], side: str) -> str:
+        left_val = self._map_pulse_width(left_idx)
+        right_val = self._map_pulse_width(right_idx)
+        if side == "左":
+            return left_val
+        if side == "右":
+            return right_val
+        if left_val and right_val and left_val != right_val:
+            return f"{left_val}/{right_val}"
+        return left_val or right_val
+
+    @staticmethod
+    def _merge_intensity(left_grade: Optional[int], right_grade: Optional[int], side: str) -> str:
+        left_val = "" if left_grade is None else str(int(left_grade))
+        right_val = "" if right_grade is None else str(int(right_grade))
+        if side == "左":
+            return left_val
+        if side == "右":
+            return right_val
+        if left_val and right_val and left_val != right_val:
+            return f"{left_val}/{right_val}"
+        return left_val or right_val
 
     def end_session(self, session_id: int, reason: str = "manual_exit", end_time: Optional[str] = None) -> bool:
         """结束会话"""

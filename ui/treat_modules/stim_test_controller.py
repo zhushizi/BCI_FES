@@ -664,6 +664,7 @@ class StimTestController:
             self._send_basic_params()
         except Exception:
             self._logger.exception("脉宽变更下发基础参数失败")
+        self._save_current_params()
 
     def _on_left_grade_increase(self) -> None:
         if not self._test_running:
@@ -1002,6 +1003,8 @@ QScrollBar::sub-line:horizontal {
                 right_scheme_idx=self._default_params.get("left_scheme_idx", 0),
                 left_freq_idx=self._default_params.get("left_freq_idx", 0),
                 right_freq_idx=self._default_params.get("left_freq_idx", 0),
+                left_pulse_width_idx=0,
+                right_pulse_width_idx=0,
             )
             if self.session_app:
                 try:
@@ -1014,10 +1017,12 @@ QScrollBar::sub-line:horizontal {
             self._set_left_grade(getattr(params, "right_grade", 0))
             self._set_combo_index("comboBox_left_scheme", getattr(params, "right_scheme_idx", 0))
             self._set_freq_value(getattr(params, "right_freq_idx", self._FREQ_DEFAULT_MS))
+            self._set_combo_index("comboBox_pulse_width", getattr(params, "right_pulse_width_idx", 0))
             return
         self._set_left_grade(getattr(params, "left_grade", 0))
         self._set_combo_index("comboBox_left_scheme", getattr(params, "left_scheme_idx", 0))
         self._set_freq_value(getattr(params, "left_freq_idx", self._FREQ_DEFAULT_MS))
+        self._set_combo_index("comboBox_pulse_width", getattr(params, "left_pulse_width_idx", 0))
 
     def _save_current_params(self) -> None:
         pid = self._current_patient_id
@@ -1034,24 +1039,31 @@ QScrollBar::sub-line:horizontal {
                     right_scheme_idx=self._default_params.get("left_scheme_idx", 0),
                     left_freq_idx=self._default_params.get("left_freq_idx", 0),
                     right_freq_idx=self._default_params.get("left_freq_idx", 0),
+                    left_pulse_width_idx=0,
+                    right_pulse_width_idx=0,
                 )
             current_grade = self._get_left_grade()
             current_scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
             current_freq_idx = self._get_freq_value()
+            current_pulse_width_idx = self._get_combo_index("comboBox_pulse_width") or 0
             if self._selected_leg_channel() == "right":
                 left_grade = getattr(params, "left_grade", 0)
                 left_scheme_idx = getattr(params, "left_scheme_idx", self._default_params.get("left_scheme_idx", 0))
                 left_freq_idx = getattr(params, "left_freq_idx", self._default_params.get("left_freq_idx", 0))
+                left_pulse_width_idx = getattr(params, "left_pulse_width_idx", 0)
                 right_grade = current_grade
                 right_scheme_idx = current_scheme_idx
                 right_freq_idx = current_freq_idx
+                right_pulse_width_idx = current_pulse_width_idx
             else:
                 left_grade = current_grade
                 left_scheme_idx = current_scheme_idx
                 left_freq_idx = current_freq_idx
+                left_pulse_width_idx = current_pulse_width_idx
                 right_grade = getattr(params, "right_grade", 0)
                 right_scheme_idx = getattr(params, "right_scheme_idx", self._default_params.get("left_scheme_idx", 0))
                 right_freq_idx = getattr(params, "right_freq_idx", self._default_params.get("left_freq_idx", 0))
+                right_pulse_width_idx = getattr(params, "right_pulse_width_idx", 0)
             self.session_app.save_treat_params(
                 PatientTreatParams(
                     patient_id=pid,
@@ -1061,6 +1073,8 @@ QScrollBar::sub-line:horizontal {
                     right_scheme_idx=right_scheme_idx,
                     left_freq_idx=left_freq_idx,
                     right_freq_idx=right_freq_idx,
+                    left_pulse_width_idx=left_pulse_width_idx,
+                    right_pulse_width_idx=right_pulse_width_idx,
                 )
             )
         except Exception:

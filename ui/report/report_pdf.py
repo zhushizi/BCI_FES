@@ -69,6 +69,18 @@ def _format_stim_position(position: Any) -> str:
     return value
 
 
+def _map_leg_side(leg: Any) -> str:
+    text = str(leg or "").strip()
+    low = text.lower()
+    if text == "左腿" or ("左" in text and "右" not in text) or ("left" in low and "right" not in low):
+        return "左"
+    if text == "右腿" or ("右" in text and "左" not in text) or ("right" in low and "left" not in low):
+        return "右"
+    if text == "双腿" or "双" in text or ("左" in text and "右" in text) or "both" in low:
+        return "双"
+    return "双"
+
+
 def _safe_str(value: Any) -> str:
     if value is None or value == "":
         return "—"
@@ -101,40 +113,74 @@ def _get_training_info(detail: Optional[Dict[str, Any]]) -> Dict[str, str]:
 
 def _get_treatment_info(detail: Optional[Dict[str, Any]]) -> Dict[str, str]:
     detail = detail or {}
-    def _map_scheme(v: Any) -> str:
+
+    def _map_waveform(v: Any) -> str:
         if v is None or v == "":
             return "—"
         try:
-            return str(int(v) + 1)
+            return "对称波" if int(v) <= 0 else "非对称波"
         except Exception:
             return str(v)
+
     def _map_freq(v: Any) -> str:
         if v is None or v == "":
             return "—"
-        mapping = {
-            0: "0.5",
-            1: "0.6",
-            2: "0.7",
-            3: "0.8",
-            4: "0.9",
-            5: "1.0",
-            6: "2.0",
-            7: "3.0",
-            8: "4.0",
-            9: "5.0",
-        }
         try:
             key = int(v)
             if 20 <= key <= 100:
                 return f"{key} ms"
-            return mapping.get(key, str(v))
+            return str(v)
         except Exception:
             return str(v)
+
+    def _map_pulse_width(v: Any) -> str:
+        if v is None or v == "":
+            return "—"
+        try:
+            idx = int(v)
+            return f"{(idx + 1) * 50}us"
+        except Exception:
+            return str(v)
+
+    train_params_raw = detail.get("TrainParams")
+    pulse_width_left = None
+    pulse_width_right = None
+    if train_params_raw:
+        try:
+            parsed = json.loads(train_params_raw) if isinstance(train_params_raw, str) else train_params_raw
+            pulse_width_left = (parsed or {}).get("left_pulse_width_idx")
+            pulse_width_right = (parsed or {}).get("right_pulse_width_idx")
+        except Exception:
+            pulse_width_left = None
+            pulse_width_right = None
+
+    stim_intensity = _safe_str(detail.get("StimIntensity"))
+    stim_waveform = _safe_str(detail.get("StimWaveform"))
+    stim_pulse_width = _safe_str(detail.get("StimPulseWidth"))
+    stim_side = _safe_str(detail.get("StimSide"))
+    if stim_intensity == "—":
+        left_i = _safe_str(detail.get("StimChannelAIntensity"))
+        right_i = _safe_str(detail.get("StimChannelBIntensity"))
+        if left_i == right_i:
+            stim_intensity = left_i
+        else:
+            stim_intensity = f"{left_i}/{right_i}"
+    if stim_waveform == "—":
+        stim_waveform = _map_waveform(detail.get("StimSchemeAB"))
+    if stim_pulse_width == "—":
+        left_pw = _map_pulse_width(pulse_width_left)
+        right_pw = _map_pulse_width(pulse_width_right)
+        stim_pulse_width = left_pw if left_pw == right_pw else f"{left_pw}/{right_pw}"
     return {
         "StimChannelAIntensity": _safe_str(detail.get("StimChannelAIntensity")),
         "StimChannelBIntensity": _safe_str(detail.get("StimChannelBIntensity")),
-        "StimSchemeAB": _map_scheme(detail.get("StimSchemeAB")),
+        "StimIntensity": stim_intensity,
+        "StimWaveform": stim_waveform,
+        "StimPulseWidth": stim_pulse_width,
+        "StimSide": stim_side,
         "StimFreqAB": _map_freq(detail.get("StimFreqAB")),
+        "PulseWidthLeft": _map_pulse_width(pulse_width_left),
+        "PulseWidthRight": _map_pulse_width(pulse_width_right),
         "Paradigm": _safe_str(detail.get("Paradigm")),
         "StimPosition": _safe_str(detail.get("StimPosition")),
     }
@@ -269,7 +315,21 @@ def build_report_html(
     pi = _get_patient_info(patient)
     ti = _get_training_info(detail)
     tri = _get_treatment_info(detail)
-    stim_label = _format_stim_position(tri.get("StimPosition"))
+    leg_side = _map_leg_side((patient or {}).get("Leg", ""))
+    stim_label = f"{leg_side}{_format_stim_position(tri.get('StimPosition'))}"
+    stim_a = tri.get("StimChannelAIntensity", "—")
+    stim_b = tri.get("StimChannelBIntensity", "—")
+    if leg_side == "左":
+        stim_intensity = tri.get("StimIntensity", stim_a)
+        pulse_width = tri.get("StimPulseWidth", tri.get("PulseWidthLeft", "—"))
+    elif leg_side == "右":
+        stim_intensity = tri.get("StimIntensity", stim_b)
+        pulse_width = tri.get("StimPulseWidth", tri.get("PulseWidthRight", "—"))
+    else:
+        stim_intensity = tri.get("StimIntensity", stim_a if stim_a == stim_b else f"{stim_a}/{stim_b}")
+        pulse_width = tri.get("StimPulseWidth", tri.get("PulseWidthLeft", "—"))
+        if pulse_width in ("", "—"):
+            pulse_width = tri.get("PulseWidthRight", "—")
     export_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     case_id = _safe_str((detail or {}).get("PatientId") or patient_id)
 
@@ -530,15 +590,15 @@ def build_report_html(
     parts.append(
         '<table class="row-2col" width="100%">'
         '<tr>'
-        f'<td width="50%" align="left"><span class="label">通道A强度:</span>{html.escape(tri["StimChannelAIntensity"])}</td>'
-        f'<td width="50%" align="center"><span class="label">通道B强度:</span>{html.escape(tri["StimChannelBIntensity"])}</td>'
+        f'<td width="50%" align="left"><span class="label">刺激强度:</span>{html.escape(stim_intensity)}</td>'
+        f'<td width="50%" align="center"><span class="label">波形:</span>{html.escape(tri["StimWaveform"])}</td>'
         '</tr>'
         '</table>'
     )
     parts.append(
         '<table class="row-2col" width="100%">'
         '<tr>'
-        f'<td width="50%" align="left"><span class="label">刺激方案:</span>{html.escape("方案" + tri["StimSchemeAB"])}</td>'
+        f'<td width="50%" align="left"><span class="label">脉冲宽度:</span>{html.escape(pulse_width)}</td>'
         f'<td width="50%" align="center"><span class="label">刺激频率:</span>{html.escape(tri["StimFreqAB"])}</td>'
         '</tr>'
         '</table>'

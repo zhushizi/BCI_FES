@@ -26,6 +26,8 @@ class PatientTreatParams:
     right_scheme_idx: int = 0
     left_freq_idx: int = 20
     right_freq_idx: int = 20
+    left_pulse_width_idx: int = 0
+    right_pulse_width_idx: int = 0
 
 
 @dataclass
@@ -111,6 +113,9 @@ class SessionApp:
                     right_scheme_idx=params.right_scheme_idx,
                     left_freq_idx=params.left_freq_idx,
                     right_freq_idx=params.right_freq_idx,
+                    left_pulse_width_idx=params.left_pulse_width_idx,
+                    right_pulse_width_idx=params.right_pulse_width_idx,
+                    leg_side=self._resolve_leg_side(pid),
                 )
             except Exception:
                 pass
@@ -248,6 +253,9 @@ class SessionApp:
                     right_scheme_idx=params.right_scheme_idx,
                     left_freq_idx=params.left_freq_idx,
                     right_freq_idx=params.right_freq_idx,
+                    left_pulse_width_idx=params.left_pulse_width_idx,
+                    right_pulse_width_idx=params.right_pulse_width_idx,
+                    leg_side=self._resolve_leg_side(self._current_patient_id),
                 )
         except Exception:
             pass
@@ -371,3 +379,18 @@ class SessionApp:
 
     def delete_patient_treat_sessions(self, session_ids: list[int]) -> int:
         return self.service.delete_patient_treat_sessions(session_ids)
+
+    def _resolve_leg_side(self, patient_id: str) -> str:
+        try:
+            patient = self.patient_app.get_patient_by_id(str(patient_id))
+        except Exception:
+            patient = None
+        leg = str((patient or {}).get("Leg") or "").strip()
+        leg_lower = leg.lower()
+        if leg == "左腿" or ("左" in leg and "右" not in leg) or ("left" in leg_lower and "right" not in leg_lower):
+            return "左"
+        if leg == "右腿" or ("右" in leg and "左" not in leg) or ("right" in leg_lower and "left" not in leg_lower):
+            return "右"
+        if leg == "双腿" or "双" in leg or ("左" in leg and "右" in leg) or "both" in leg_lower:
+            return "双"
+        return "双"
