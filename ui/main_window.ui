@@ -560,7 +560,7 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>勾脚+ssvep范式</string>
@@ -585,7 +585,7 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>勾脚+混合范式</string>
@@ -610,7 +610,7 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>勾脚+mi范式</string>
@@ -635,7 +635,7 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>抬腿+ssvep范式</string>
@@ -660,7 +660,7 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>抬腿+混合范式</string>
@@ -685,7 +685,7 @@ QTabWidget#tabWidget QTabBar::tab {
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">color: rgb(88, 122, 244);</string>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>抬腿+mi范式</string>

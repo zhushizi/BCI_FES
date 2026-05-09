@@ -449,6 +449,7 @@ class _HoverShadowFilter(QObject):
         self._text_label = text_label
         self._icon_base_geo = QRect(icon_label.geometry()) if icon_label is not None else None
         self._text_base_size = text_label.font().pointSize() if text_label is not None else None
+        self._text_base_style = text_label.styleSheet() if text_label is not None else ""
 
     def eventFilter(self, obj, event):
         if obj is self._target:
@@ -483,3 +484,7 @@ class _HoverShadowFilter(QObject):
         font = self._text_label.font()
         font.setPointSize(16 if is_hover else self._text_base_size)
         self._text_label.setFont(font)
+        if is_hover:
+            self._text_label.setStyleSheet("color: rgb(88, 122, 244);")
+        else:
+            self._text_label.setStyleSheet(self._text_base_style)
