@@ -7,8 +7,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PySide6.QtWidgets import QWidget, QMessageBox
-from PySide6.QtCore import Signal, QFile
+from PySide6.QtWidgets import QWidget, QMessageBox, QLabel
+from PySide6.QtCore import Signal, QFile, Qt
 from PySide6.QtUiTools import QUiLoader
 
 from ui.core.app_icon import apply_window_icon
@@ -110,6 +110,7 @@ class MainWindow(QWidget):
         self.ui = ui_loader.load(ui_file, self)
         ui_file.close()
         apply_window_icon(self)
+        self._setup_treat_paradigm_overlay_click_through()
 
         # 子模块控制器
         self.treat_controller = TreatPageController(
@@ -153,6 +154,30 @@ class MainWindow(QWidget):
         self._init_ui()
         self._display_user_info()
         self._bind_session_events()
+
+    def _setup_treat_paradigm_overlay_click_through(self) -> None:
+        """治疗首页范式图标与说明文字叠在按钮上方时，鼠标事件穿透到下层的范式按钮。"""
+        names = (
+            "label_icon_ssvep_gou",
+            "label_icon_ssvep_tai",
+            "label_icon_ssmvep_gou",
+            "label_icon_ssmvep_tai",
+            "label_icon_mi_gou",
+            "label_icon_mi_tai",
+            "label_23",
+            "label_24",
+            "label_25",
+            "label_27",
+            "label_28",
+            "label_29",
+        )
+        root = self.ui
+        if root is None:
+            return
+        for name in names:
+            w = root.findChild(QLabel, name)
+            if w is not None:
+                w.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
     def _setup_connections(self):
         """设置信号和槽的连接"""

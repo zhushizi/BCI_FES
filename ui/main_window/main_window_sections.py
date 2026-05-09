@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 from PySide6.QtCore import Qt, QRect, QTimer, QObject, QEvent
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QMessageBox, QGraphicsDropShadowEffect
+from PySide6.QtWidgets import QMessageBox, QGraphicsDropShadowEffect, QLabel
 
 from ui.core.utils import get_ui_attr, safe_call, safe_connect
 from ui.dialogs.patient_select import PatientSelectDialog
@@ -262,6 +262,14 @@ class MainWindowTreatFlow:
         self.ui = host.ui
         self.logger = host.logger
         self._hover_filters: list[_HoverShadowFilter] = []
+        self._hover_mapping: dict[str, tuple[str, str]] = {
+            "pushButton_gou_ssvep": ("label_icon_ssvep_gou", "label_23"),
+            "pushButton_gou_ssmvep": ("label_icon_ssmvep_gou", "label_24"),
+            "pushButton_gou_mi": ("label_icon_mi_gou", "label_25"),
+            "pushButton_tai_ssvep": ("label_icon_ssvep_tai", "label_27"),
+            "pushButton_tai_ssmvep": ("label_icon_ssmvep_tai", "label_28"),
+            "pushButton_tai_mi": ("label_icon_mi_tai", "label_29"),
+        }
 
     def bind(self) -> None:
         def connect_click(name: str, slot: Callable[[], None]) -> None:
@@ -281,7 +289,7 @@ class MainWindowTreatFlow:
         for button_name in treat_buttons:
             button = get_ui_attr(self.ui, button_name)
             if button:
-                self._attach_hover_shadow(button)
+                self._attach_hover_shadow(button, button_name)
                 safe_connect(
                     self.logger,
                     getattr(button, "clicked", None),
@@ -294,14 +302,33 @@ class MainWindowTreatFlow:
         start_evaluate_btn = get_ui_attr(self.ui, "pushButton_startevaluate")
         safe_connect(self.logger, getattr(start_evaluate_btn, "clicked", None), self.on_start_evaluate_clicked)
 
-    def _attach_hover_shadow(self, button) -> None:
+    def _build_treat_button_style(self, button_name: str, border_color: str) -> str:
+        return (
+            f"QPushButton#{button_name} {{ "
+            f"background-color: #ffffff; border-radius: 42px; border: 2px solid {border_color}; "
+            f"}}"
+        )
+
+    def _attach_hover_shadow(self, button, button_name: str) -> None:
+        # 默认灰色边框（悬浮时再变淡）
+        button.setStyleSheet(self._build_treat_button_style(button_name, "#C8C8C8"))
         effect = QGraphicsDropShadowEffect(button)
         effect.setBlurRadius(18)
         effect.setOffset(0, 0)
         effect.setColor(QColor(0, 0, 0, 90))
         effect.setEnabled(False)
         button.setGraphicsEffect(effect)
-        hover_filter = _HoverShadowFilter(button, effect)
+        icon_name, text_name = self._hover_mapping.get(button_name, ("", ""))
+        icon_label = self.ui.findChild(QLabel, icon_name) if icon_name else None
+        text_label = self.ui.findChild(QLabel, text_name) if text_name else None
+        hover_filter = _HoverShadowFilter(
+            button=button,
+            effect=effect,
+            normal_style=self._build_treat_button_style(button_name, "#C8C8C8"),
+            hover_style=self._build_treat_button_style(button_name, "#E2E2E2"),
+            icon_label=icon_label,
+            text_label=text_label,
+        )
         button.installEventFilter(hover_filter)
         self._hover_filters.append(hover_filter)
 
@@ -404,15 +431,55 @@ class MainWindowTreatFlow:
 
 
 class _HoverShadowFilter(QObject):
-    def __init__(self, target, effect: QGraphicsDropShadowEffect):
-        super().__init__(target)
-        self._target = target
+    def __init__(
+        self,
+        button,
+        effect: QGraphicsDropShadowEffect,
+        normal_style: str,
+        hover_style: str,
+        icon_label: QLabel | None = None,
+        text_label: QLabel | None = None,
+    ):
+        super().__init__(button)
+        self._target = button
         self._effect = effect
+        self._normal_style = normal_style
+        self._hover_style = hover_style
+        self._icon_label = icon_label
+        self._text_label = text_label
+        self._icon_base_geo = QRect(icon_label.geometry()) if icon_label is not None else None
+        self._text_base_size = text_label.font().pointSize() if text_label is not None else None
 
     def eventFilter(self, obj, event):
         if obj is self._target:
             if event.type() == QEvent.Enter:
                 self._effect.setEnabled(True)
+                self._target.setStyleSheet(self._hover_style)
+                self._apply_icon_hover(True)
+                self._apply_text_hover(True)
             elif event.type() == QEvent.Leave:
                 self._effect.setEnabled(False)
+                self._target.setStyleSheet(self._normal_style)
+                self._apply_icon_hover(False)
+                self._apply_text_hover(False)
         return super().eventFilter(obj, event)
+
+    def _apply_icon_hover(self, is_hover: bool) -> None:
+        if self._icon_label is None or self._icon_base_geo is None:
+            return
+        if not is_hover:
+            self._icon_label.setGeometry(self._icon_base_geo)
+            return
+        base = self._icon_base_geo
+        new_w = int(round(base.width() * 1.1))
+        new_h = int(round(base.height() * 1.1))
+        new_x = base.x() - (new_w - base.width()) // 2
+        new_y = base.y() - (new_h - base.height()) // 2
+        self._icon_label.setGeometry(new_x, new_y, new_w, new_h)
+
+    def _apply_text_hover(self, is_hover: bool) -> None:
+        if self._text_label is None or self._text_base_size is None or self._text_base_size <= 0:
+            return
+        font = self._text_label.font()
+        font.setPointSize(16 if is_hover else self._text_base_size)
+        self._text_label.setFont(font)

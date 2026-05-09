@@ -63,6 +63,9 @@
         <file>pic/main_color.png</file>
         <file>pic/main_tips.png</file>
         <file>pic/main_tips_logo.png</file>
+        <file>pic/icon_mi.png</file>
+        <file>pic/icon_ssvep.png</file>
+        <file>pic/icon_ssmvep.png</file>
 
     </qresource>
 

@@ -793,7 +793,8 @@ border-image: url(:/patient/pic/patient_select_close.png);</string>
    </property>
    <property name="styleSheet">
     <string>QComboBox { border: 1px solid gray; border-radius: 5px; background-color: white; }
-QComboBox QAbstractItemView { background-color: white; }</string>
+QComboBox QAbstractItemView { background-color: white; }
+QComboBox QAbstractItemView::item:disabled { color: #b0b0b0; }</string>
    </property>
    <item>
     <property name="text">
