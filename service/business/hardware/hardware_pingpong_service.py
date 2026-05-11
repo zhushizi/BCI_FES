@@ -30,15 +30,8 @@ class HardwarePingPongService:
     # 协议常量
     FRAME_HEADER = HeartbeatFrame.FRAME_HEADER
     FRAME_LENGTH = HeartbeatFrame.FRAME_LENGTH
-    RESERVED_BYTE = HeartbeatFrame.RESERVED_BYTE
     FRAME_SIZE = HeartbeatFrame.FRAME_SIZE
     FRAME_DATA_SIZE = HeartbeatFrame.FRAME_DATA_SIZE
-    RESERVED_COUNT = HeartbeatFrame.RESERVED_COUNT
-    
-    # 心跳模式
-    HEARTBEAT_MODE = HeartbeatFrame.HEARTBEAT_MODE
-    HEARTBEAT_FROM_DEVICE = HeartbeatFrame.HEARTBEAT_FROM_DEVICE
-    HEARTBEAT_TO_DEVICE = HeartbeatFrame.HEARTBEAT_TO_DEVICE
 
     # 默认策略：每隔 N 秒主动发一次 0x02；超过 N 秒没收到 0x01 判定离线
     DEFAULT_INTERVAL_SEC = 3.0
@@ -155,13 +148,21 @@ class HardwarePingPongService:
                 self._recv_buffer.pop(0)
                 continue
             frame = bytes(self._recv_buffer[:HeartbeatFrame.FRAME_SIZE])
-            if not HeartbeatFrame.is_heartbeat_request(frame, self.logger):
+            heartbeat_status = HeartbeatFrame.parse_heartbeat_status(frame, self.logger)
+            if heartbeat_status is None:
                 self._recv_buffer.pop(0)
                 continue
             del self._recv_buffer[:HeartbeatFrame.FRAME_SIZE]
             self._last_heartbeat_ts = self._now()
             self._update_status(status=HeartbeatStatus.ONLINE, last_seen_sec=0.0)
-            self.logger.debug("收到下位机心跳包（仅刷新在线状态）")
+            self.logger.debug(
+                "收到下位机心跳包: side=%s thigh=%s calf=%s trigger=%s",
+                heartbeat_status.side,
+                heartbeat_status.thigh_connected,
+                heartbeat_status.calf_connected,
+                heartbeat_status.trigger_connected,
+            )
+            self._send_heartbeat_response()
 
     def _start_threads(self) -> None:
         """启动后台线程：主动发送 + 超时监控"""
@@ -179,15 +180,11 @@ class HardwarePingPongService:
                 t.join(timeout=self.JOIN_TIMEOUT_SEC)
 
     def _sender_loop(self) -> None:
-        """每隔 interval_sec 主动发送一次 0x02（不依赖下位机先发 ping）"""
+        """保留线程循环用于兼容旧配置；新协议采用收包后立即响应。"""
         next_send = 0.0
         while self._is_enabled and not self._stop_event.is_set():
             now = self._now()
             if now >= next_send:
-                try:
-                    self._send_heartbeat_response()
-                except Exception as e:
-                    self.logger.error(f"主动发送心跳响应异常: {e}")
                 next_send = now + max(self.MIN_INTERVAL_SEC, float(self._interval_sec))
             time.sleep(self.SENDER_SLEEP_SEC)
 
@@ -245,11 +242,10 @@ class HardwarePingPongService:
     
     def _send_heartbeat_response(self) -> bool:
         """
-        发送心跳响应包
+        发送心跳响应包（校时命令）
         
         心跳响应包格式（上位机->下位机）：
-        [帧头(2)] [长度(1)] [保留(1)] [模式(1)] [方向(1)] [保留(5)] [校验和(2)]
-        0x55 0xAA  0x0D     0x00     0xAB     0x02      0x00...   0x?? 0x??
+        [帧头(2)] [长度(1)] [类型(1=0xCE)] [yy MM dd HH mm ss] [保留(1)] [CRC16(2)]
         
         Returns:
             bool: 发送是否成功
@@ -281,7 +277,7 @@ class HardwarePingPongService:
     
     def _calculate_checksum(self, data: bytearray) -> bytes:
         """
-        计算校验和（前11字节的和，返回2字节）
+        计算 CRC16（Modbus，低字节在前）
         
         Args:
             data: 前11字节的数据
@@ -289,7 +285,7 @@ class HardwarePingPongService:
         Returns:
             bytes: 2字节的校验和
         """
-        return HeartbeatFrame.calculate_checksum(data)
+        return HeartbeatFrame.calculate_crc16(data)
 
     @staticmethod
     def _now() -> float:

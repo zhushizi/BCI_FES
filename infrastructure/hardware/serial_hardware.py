@@ -261,12 +261,10 @@ class SerialHardware:
             return False
         if data[2] != HeartbeatFrame.FRAME_LENGTH:
             return False
-        if data[4] != HeartbeatFrame.HEARTBEAT_MODE:
-            return False
-        if data[5] not in (HeartbeatFrame.HEARTBEAT_FROM_DEVICE, HeartbeatFrame.HEARTBEAT_TO_DEVICE):
-            return False
-        expected_checksum = HeartbeatFrame.calculate_checksum(bytearray(data[:HeartbeatFrame.FRAME_DATA_SIZE]))
-        return data[HeartbeatFrame.FRAME_DATA_SIZE:HeartbeatFrame.FRAME_SIZE] == expected_checksum
+        if data[3] == HeartbeatFrame.SET_TIME_COMMAND:
+            expected_checksum = HeartbeatFrame.calculate_crc16(bytearray(data[:HeartbeatFrame.FRAME_DATA_SIZE]))
+            return data[HeartbeatFrame.FRAME_DATA_SIZE:HeartbeatFrame.FRAME_SIZE] == expected_checksum
+        return HeartbeatFrame.is_heartbeat_request(data, self.logger)
     
     @staticmethod
     def list_available_ports() -> list:
