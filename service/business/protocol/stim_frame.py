@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from service.business.protocol.heartbeat_frame import HeartbeatFrame
+
+
 class StimFrame:
     FRAME_HEADER = bytes([0x55, 0xAA])  # 帧头
     FRAME_LENGTH = 0x0D  # 帧长度（13字节，定长）
@@ -70,8 +73,6 @@ class StimFrame:
         return int(value) & 0xFF
 
     @classmethod
-    def _calculate_checksum(cls, data: bytearray) -> bytes:
-        if len(data) != cls.FRAME_DATA_SIZE:
-            raise ValueError(f"校验和计算错误：数据长度应为{cls.FRAME_DATA_SIZE}字节，实际为{len(data)}字节")
-        checksum_value = sum(data) & 0xFFFF
-        return checksum_value.to_bytes(2, "big")
+    def _calculate_checksum(cls, data: bytearray | bytes) -> bytes:
+        """与心跳帧一致：前 11 字节 Modbus CRC16（多项式 0xA001），低位在前。"""
+        return HeartbeatFrame.calculate_crc16(data)

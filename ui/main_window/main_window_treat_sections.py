@@ -78,7 +78,7 @@ class TreatNavigation:
         safe_connect(self._logger, getattr(sub_tab, "currentChanged", None), self.on_sub_tab_changed)
 
     def enter_preprocess_page(self) -> None:
-        self._host.stim_ctrl.reset_stimulus_grades()
+        self._host.stim_ctrl.reset_stimulus_grades(sync_hardware=False)
         radio_checksafe = get_ui_attr(self.ui, "radioButton_checksafe")
         if radio_checksafe is not None:
             safe_call(self._logger, getattr(radio_checksafe, "setChecked", None), False)

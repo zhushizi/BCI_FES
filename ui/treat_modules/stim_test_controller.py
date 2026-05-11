@@ -397,13 +397,14 @@ class StimTestController:
         self._save_current_params()
         self._stop_treatment_safe()
 
-    def reset_stimulus_grades(self) -> None:
-        """清零单通道刺激强度（0级）并同步到硬件与 session。"""
+    def reset_stimulus_grades(self, sync_hardware: bool = True) -> None:
+        """清零单通道刺激强度（0级），可选是否同步下发到硬件。"""
         self._set_left_grade(0)
-        try:
-            self._send_advanced_params(current_value=0)
-        except Exception:
-            self._logger.exception("清零档位后下发高级参数失败")
+        if sync_hardware:
+            try:
+                self._send_advanced_params(current_value=0)
+            except Exception:
+                self._logger.exception("清零档位后下发高级参数失败")
         self._save_current_params()
         self._reset_stim_leg_completion_flags()
         self._refresh_stim_leg_styles()
