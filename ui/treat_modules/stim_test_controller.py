@@ -30,15 +30,19 @@ class StimTestController:
     _TIME_MIN_TENTHS = 1
     _TIME_MAX_TENTHS = 20
     _TIME_DEFAULT_TENTHS = 10
+    # 刺激时长：滑块 1–4，下发协议字节即为 1–4（不按 0.1s×10 刻度）
+    _STIM_DURATION_SCROLL_NAME = "horizontalScrollBar_time_stim"
+    _STIM_DURATION_MIN = 1
+    _STIM_DURATION_MAX = 4
+    _STIM_DURATION_DEFAULT = 1
     _TIME_DEFAULT_TENTHS_BY_SCROLLBAR = {
-        "horizontalScrollBar_time_stim": 10,
         "horizontalScrollBar_time_rise": 5,
         "horizontalScrollBar_time_down": 5,
     }
     _CURRENT_MODE_START = 0xEF
     _CURRENT_MODE_STOP = 0xFF
     _CURRENT_MAX_OUTPUT = 0x50
-    _ADVANCED_RESERVED_STIM_PAGE = 0xFF
+    _ADVANCED_RESERVED_STIM_PAGE = 0x02
 
     _STYLE_LEG_SELECTED = (
         "QPushButton { background-color: rgb(219, 233, 247); color: rgb(88, 122, 244); "
@@ -625,12 +629,12 @@ class StimTestController:
     def _get_time_scrollbar_value(self, name: str) -> int:
         scrollbar = get_ui_attr(self.ui, name)
         if scrollbar is None:
-            return self._default_time_tenths(name)
+            return self._default_time_scroll_value(name)
         try:
-            return self._normalize_time_tenths(int(scrollbar.value()))
+            return self._normalize_time_scroll_value(name, int(scrollbar.value()))
         except Exception:
             self._logger.exception("读取时间拖条失败: %s", name)
-            return self._default_time_tenths(name)
+            return self._default_time_scroll_value(name)
 
     def _normalize_current_value(self, value: int) -> int:
         current = int(value)
@@ -764,6 +768,35 @@ class StimTestController:
         freq = self._get_freq_value() if value is None else self._normalize_freq_value(value)
         safe_call(self._logger, getattr(label, "setText", None), f"{freq} ms")
 
+    def _is_stim_duration_scroll(self, name: str) -> bool:
+        return name == self._STIM_DURATION_SCROLL_NAME
+
+    def _time_scroll_min(self, name: str) -> int:
+        return self._STIM_DURATION_MIN if self._is_stim_duration_scroll(name) else self._TIME_MIN_TENTHS
+
+    def _time_scroll_max(self, name: str) -> int:
+        return self._STIM_DURATION_MAX if self._is_stim_duration_scroll(name) else self._TIME_MAX_TENTHS
+
+    def _default_time_scroll_value(self, name: str) -> int:
+        if self._is_stim_duration_scroll(name):
+            return self._STIM_DURATION_DEFAULT
+        raw = self._TIME_DEFAULT_TENTHS_BY_SCROLLBAR.get(name, self._TIME_DEFAULT_TENTHS)
+        return self._normalize_time_tenths(raw)
+
+    def _normalize_time_scroll_value(self, name: str, value: int | None) -> int:
+        if self._is_stim_duration_scroll(name):
+            if value is None:
+                return self._STIM_DURATION_DEFAULT
+            return max(self._STIM_DURATION_MIN, min(self._STIM_DURATION_MAX, int(value)))
+        return self._normalize_time_tenths(value)
+
+    def _format_time_scroll_display(self, name: str, value: int) -> str:
+        v = self._normalize_time_scroll_value(name, value)
+        if self._is_stim_duration_scroll(name):
+            return f"{v}s"
+        seconds = v / 10
+        return f"{seconds:g}s"
+
     def _init_time_scrollbars(self) -> None:
         for name in (
             "horizontalScrollBar_time_stim",
@@ -774,11 +807,11 @@ class StimTestController:
             if scrollbar is None:
                 continue
             try:
-                scrollbar.setMinimum(self._TIME_MIN_TENTHS)
-                scrollbar.setMaximum(self._TIME_MAX_TENTHS)
+                scrollbar.setMinimum(self._time_scroll_min(name))
+                scrollbar.setMaximum(self._time_scroll_max(name))
                 scrollbar.setSingleStep(1)
                 scrollbar.setPageStep(1)
-                scrollbar.setValue(self._default_time_tenths(name))
+                scrollbar.setValue(self._default_time_scroll_value(name))
                 scrollbar.setStyleSheet(self._time_scrollbar_style())
                 safe_connect(
                     self._logger,
@@ -840,7 +873,12 @@ QScrollBar::sub-line:horizontal {
         )
 
         tick_labels: list[QLabel] = []
-        for text in ("0.5s", "1s", "1.5s", "2s"):
+        tick_texts = (
+            ("1", "2", "3", "4")
+            if self._is_stim_duration_scroll(name)
+            else ("0.5s", "1s", "1.5s", "2s")
+        )
+        for text in tick_texts:
             tick = QLabel(parent)
             tick.setText(text)
             tick.setAlignment(Qt.AlignCenter)
@@ -880,9 +918,9 @@ QScrollBar::sub-line:horizontal {
             return
         geom = scrollbar.geometry()
         tick_y = geom.y() + geom.height() + 6
-        tick_values = (5, 10, 15, 20)
+        tick_values = (1, 2, 3, 4) if self._is_stim_duration_scroll(name) else (5, 10, 15, 20)
         for tick, tick_value in zip(widgets["ticks"], tick_values):
-            x = self._time_value_to_x(geom.x(), geom.width(), tick_value) - 24
+            x = self._time_value_to_x(geom.x(), geom.width(), name, tick_value) - 24
             tick.setGeometry(x, tick_y, 48, 18)
             tick.show()
 
@@ -894,9 +932,12 @@ QScrollBar::sub-line:horizontal {
         for key in ("minus", "value", "plus", "tip"):
             widgets[key].show()
 
-    def _time_value_to_x(self, left: int, width: int, value: int) -> int:
-        span = max(1, self._TIME_MAX_TENTHS - self._TIME_MIN_TENTHS)
-        ratio = (self._normalize_time_tenths(value) - self._TIME_MIN_TENTHS) / span
+    def _time_value_to_x(self, left: int, width: int, name: str, value: int) -> int:
+        vmin = self._time_scroll_min(name)
+        vmax = self._time_scroll_max(name)
+        span = max(1, vmax - vmin)
+        v = self._normalize_time_scroll_value(name, value)
+        ratio = (v - vmin) / span
         return int(left + ratio * width)
 
     def _on_time_scrollbar_changed(self, name: str, value: int) -> None:
@@ -914,15 +955,14 @@ QScrollBar::sub-line:horizontal {
         scrollbar = get_ui_attr(self.ui, name)
         if scrollbar is None:
             return
-        scrollbar.setValue(self._normalize_time_tenths(int(scrollbar.value()) + int(step)))
+        scrollbar.setValue(
+            self._normalize_time_scroll_value(name, int(scrollbar.value()) + int(step))
+        )
         try:
             self._send_advanced_params(current_value=self._get_left_grade())
             self._save_current_params()
         except Exception:
             self._logger.exception("时间步进下发失败")
-
-    def _default_time_tenths(self, name: str) -> int:
-        return self._normalize_time_tenths(self._TIME_DEFAULT_TENTHS_BY_SCROLLBAR.get(name, self._TIME_DEFAULT_TENTHS))
 
     def _reset_time_scrollbars(self) -> None:
         for name in (
@@ -935,7 +975,7 @@ QScrollBar::sub-line:horizontal {
                 continue
             try:
                 old_block = scrollbar.blockSignals(True)
-                scrollbar.setValue(self._default_time_tenths(name))
+                scrollbar.setValue(self._default_time_scroll_value(name))
                 scrollbar.blockSignals(old_block)
                 self._update_time_scrollbar_display(name, scrollbar.value())
             except Exception:
@@ -946,23 +986,19 @@ QScrollBar::sub-line:horizontal {
             return self._TIME_DEFAULT_TENTHS
         return max(self._TIME_MIN_TENTHS, min(self._TIME_MAX_TENTHS, int(value)))
 
-    def _format_time_seconds(self, value: int) -> str:
-        seconds = self._normalize_time_tenths(value) / 10
-        return f"{seconds:g}s"
-
     def _update_time_scrollbar_display(self, name: str, value: int) -> None:
         scrollbar = get_ui_attr(self.ui, name)
         widgets = self._time_scroll_widgets.get(name)
         if scrollbar is None or not widgets:
             return
-        value = self._normalize_time_tenths(value)
-        text = self._format_time_seconds(value)
+        norm = self._normalize_time_scroll_value(name, value)
+        text = self._format_time_scroll_display(name, norm)
         widgets["value"].setText(text)
         widgets["tip"].setText(text)
 
         geom = scrollbar.geometry()
         tip_width = 58
-        tip_x = self._time_value_to_x(geom.x(), geom.width(), value) - tip_width // 2
+        tip_x = self._time_value_to_x(geom.x(), geom.width(), name, norm) - tip_width // 2
         tip_x = max(geom.x(), min(geom.x() + geom.width() - tip_width, tip_x))
         widgets["tip"].setGeometry(tip_x, geom.y() - 34, tip_width, 24)
         widgets["tip"].raise_()

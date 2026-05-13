@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional
 
 from infrastructure.communication.websocket_service import MainWebSocketService
+from service.business.protocol.treatment_ack_frame import TreatmentAckFrame
 
 @dataclass(frozen=True)
 class ActionCommand:
@@ -74,7 +75,7 @@ class ParadigmHandler:
 
 
 class SerialHandler:
-    """接收串口数据并识别 Treat_OK；对分片到达的数据做缓冲，避免 'Treat_O' + 'K' 拆成两段时漏检。"""
+    """接收串口数据并识别治疗完成：55 AA 0D [设备] FC A1（与刺激帧同壳）；仍兼容旧版 Treat_OK 文本。分片到达时做缓冲。"""
     MAX_RECV_BUFFER = 256
 
     def __init__(
@@ -100,7 +101,7 @@ class SerialHandler:
         if not self.contains_treat_ok(bytes(self._recv_buffer)):
             return
         if not self._pending_action_store.value:
-            self._logger.warning("收到 Treat_OK，但无待完成动作")
+            self._logger.warning("收到治疗完成应答，但无待完成动作")
             self._recv_buffer.clear()
             return
         trial_index = self._pending_action_store.value.trial_index
@@ -110,11 +111,13 @@ class SerialHandler:
         self._send_action_complete(trial_index, action)
 
     def contains_treat_ok(self, data: bytes) -> bool:
-        """识别 Treat_OK 的逻辑："""
-        if self._treat_ok_token.encode() in data: # 如果缓冲区中包含 Treat_OK 的 token，则返回 True
+        """55 AA 0D 且帧类型 FC、下一字节 A1 视为治疗成功；否则回退识别旧版 Treat_OK 文本。"""
+        if TreatmentAckFrame.buffer_contains_success_ack(data):
+            return True
+        if self._treat_ok_token.encode() in data:
             return True
         try:
-            text = data.decode(errors="ignore") # 如果缓冲区中不包含 Treat_OK 的 token，则尝试解码为文本
+            text = data.decode(errors="ignore")
         except Exception:
             return False
         return self._treat_ok_token in text
@@ -122,7 +125,7 @@ class SerialHandler:
     def _send_action_complete(self, trial_index: int, action: str) -> None:
         self._ws.send_exo_action_complete(trial_index=trial_index, executed_action=action)
         self._logger.info(
-            "收到 Treat_OK，已发送 main.exo_action_complete: trial_index=%s, action=%s",
+            "收到治疗完成应答，已发送 main.exo_action_complete: trial_index=%s, action=%s",
             trial_index,
             action,
         )

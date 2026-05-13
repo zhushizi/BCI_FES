@@ -355,7 +355,7 @@ QTabWidget#tabWidget QTabBar::tab {
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>3</number>
      </property>
      <property name="tabBarAutoHide">
       <bool>false</bool>
@@ -1735,14 +1735,14 @@ border-radius: 19.43px;</string>
       <widget class="QLabel" name="label_41">
        <property name="geometry">
         <rect>
-         <x>895</x>
-         <y>713</y>
-         <width>101</width>
+         <x>900</x>
+         <y>700</y>
+         <width>111</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>下肢康复设备串口</string>
+        <string>下肢康复设备串口左</string>
        </property>
       </widget>
       <widget class="QComboBox" name="comboBox_decoder_port">
@@ -1759,7 +1759,7 @@ border-radius: 19.43px;</string>
        <property name="geometry">
         <rect>
          <x>1130</x>
-         <y>710</y>
+         <y>700</y>
          <width>81</width>
          <height>22</height>
         </rect>
@@ -1779,6 +1779,29 @@ border-radius: 19.43px;</string>
        </property>
        <property name="text">
         <string/>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_48">
+       <property name="geometry">
+        <rect>
+         <x>900</x>
+         <y>740</y>
+         <width>111</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>下肢康复设备串口右</string>
+       </property>
+      </widget>
+      <widget class="QComboBox" name="comboBox_NES_port_2">
+       <property name="geometry">
+        <rect>
+         <x>1130</x>
+         <y>740</y>
+         <width>81</width>
+         <height>22</height>
+        </rect>
        </property>
       </widget>
      </widget>

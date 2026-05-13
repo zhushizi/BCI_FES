@@ -14,6 +14,8 @@ class ParadigmActionApp:
     START_RISE_TIME = 0x05
     START_DOWN_TIME = 0x05
     CURRENT_MODE_START = 0xEF
+    # 高级参数帧第 9 字节（保留位）：训练范式下发专用；电刺激测试页仍用 UI 侧 0x02
+    ADVANCED_RESERVED_TRAINING = 0xFF
 
     def __init__(self, session_app: SessionApp, stim_app: StimTestApp) -> None:
         self._session_app = session_app
@@ -50,6 +52,7 @@ class ParadigmActionApp:
                 stim_time=self.START_STIM_TIME,
                 rise_time=self.START_RISE_TIME,
                 down_time=self.START_DOWN_TIME,
+                reserved_byte=self.ADVANCED_RESERVED_TRAINING,
             )
             self._stim_app.send_basic_params(
                 device=device,
@@ -63,6 +66,7 @@ class ParadigmActionApp:
                 stim_time=self.TIME_BYTE,
                 rise_time=self.START_RISE_TIME,
                 down_time=self.START_DOWN_TIME,
+                reserved_byte=self.ADVANCED_RESERVED_TRAINING,
             )
             return True
         except Exception as exc:

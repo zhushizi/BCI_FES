@@ -11,7 +11,7 @@ WebSocket(JSON-RPC) 消息路由（服务层）。
 - decoder.ready：仅记录 params，并更新 ws.decoder_ready/decoder_info（保持兼容）
 - decoder.session_info：记录 params，并更新 ws.decoder_session_info（保持兼容）；日志仅输出摘要避免刷屏
 - system.ping：被动回 pong（可按需关闭/扩展）
-- paradigm.action_command：按动作指令下发治疗命令/数据帧，收到 Treat_OK 后回 main.exo_action_complete
+- paradigm.action_command：按动作指令下发治疗命令/数据帧，收到 55AA0D 壳下 FC A1 应答或 Treat_OK 后回 main.exo_action_complete
 """
 
 import logging
@@ -96,7 +96,7 @@ class WsMessageRouter:
         """
         self._register_ws_handlers()
 
-        # 订阅串口回调（用于接收 Treat_OK）
+        # 订阅串口回调（用于接收治疗完成：0xFC 帧 / Treat_OK）
         self._ensure_serial_callback()
 
     def set_on_action_command(self, handler: Callable[[int, str, str], bool]) -> None:
