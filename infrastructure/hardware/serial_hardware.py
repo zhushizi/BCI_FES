@@ -16,12 +16,17 @@ from service.business.protocol.heartbeat_frame import HeartbeatFrame
 
 class SerialHardware:
     """串口硬件通信类"""
-    
+
+    # 与刺激协议设备字节一致；识别「第5字节为 FC」的治疗完成应答壳，避免被心跳日志策略误抑制
+    _STIM_DEVICE_CODES = (0xEA, 0xEB, 0xFA, 0xFB)
+    _STIM_FRAME_TYPE_TREAT_DONE = 0xFC
+
     def __init__(self, port: str = None, baudrate: int = 115200,
                  timeout: float = 1.0, bytesize: int = 8,
                  parity: str = 'N', stopbits: int = 1,
                  log_receive_enabled: bool = True,
-                 log_heartbeat_enabled: bool = False):
+                 log_heartbeat_enabled: bool = False,
+                 leg_side_label: str = ""):
         """
         初始化串口通信
         
@@ -32,6 +37,10 @@ class SerialHardware:
             bytesize: 数据位，默认 8
             parity: 校验位，'N'(无校验), 'E'(偶校验), 'O'(奇校验)
             stopbits: 停止位，1 或 2
+            log_receive_enabled: 为 False 时不打印任何收发原始 hex；为 True 时打印一般数据，并对心跳/校时见下项
+            log_heartbeat_enabled: 仅在 log_receive_enabled 为 True 时生效；为 True 时打印「下位机心跳帧」与「本机 CE 校时应答」，
+                为 False 时不打印上述两类；**不会**抑制 55AA0D+EA/EB/FA/FB 且第5字节为 FC 的治疗完成应答等其它帧
+            leg_side_label: 日志标注用，如「左」「右」；空则收发日志不区分侧别
         """
         self.port = port
         self.baudrate = baudrate
@@ -40,6 +49,7 @@ class SerialHardware:
         self.parity = parity
         self.stopbits = stopbits
         
+        self.leg_side_label = str(leg_side_label or "").strip()
         self.serial_obj: Optional[serial.Serial] = None
         self.is_connected_flag = False
         self.data_received_callback: Optional[Callable[[bytes], None]] = None
@@ -50,7 +60,10 @@ class SerialHardware:
         self.log_heartbeat_enabled = bool(log_heartbeat_enabled)
         
         self.logger = logging.getLogger(__name__)
-    
+
+    def _log_side_prefix(self) -> str:
+        return f"[{self.leg_side_label}] " if self.leg_side_label else ""
+
     @property
     def device_name(self) -> str:
         """设备名称"""
@@ -145,7 +158,7 @@ class SerialHardware:
             bytes_written = self.serial_obj.write(data)
             self.serial_obj.flush()  # 确保数据立即发送
             if self._should_log_data(data):
-                self.logger.info(f"[发送指令] 数据: {data.hex()} ({len(data)} 字节)")
+                self.logger.info(f"[发送指令] {self._log_side_prefix()}数据: {data.hex()} ({len(data)} 字节)")
             return bytes_written == len(data)
         except serial.SerialException as e:
             self.logger.error(f"发送数据失败: {e}")
@@ -173,7 +186,7 @@ class SerialHardware:
                 data = self.serial_obj.read(min(size, self.serial_obj.in_waiting))
                 if self._should_log_data(data):
                     # 使用 INFO 级别，确保在终端打印
-                    self.logger.info(f"[接收指令] 数据: {data.hex()} ({len(data)} 字节)")
+                    self.logger.info(f"[接收指令] {self._log_side_prefix()}数据: {data.hex()} ({len(data)} 字节)")
                 return data
             return b''
         except serial.SerialException as e:
@@ -229,7 +242,7 @@ class SerialHardware:
                     if data:
                         if self._should_log_data(data):
                             # 使用 INFO 级别，确保在终端打印接收到的数据
-                            self.logger.info(f"[接收指令] 数据: {data.hex()} ({len(data)} 字节)")
+                            self.logger.info(f"[接收指令] {self._log_side_prefix()}数据: {data.hex()} ({len(data)} 字节)")
                         if self._data_received_callbacks:
                             for cb in list(self._data_received_callbacks):
                                 try:
@@ -248,24 +261,40 @@ class SerialHardware:
                 break
 
     def _should_log_data(self, data: bytes) -> bool:
+        """总开关 log_receive；log_heartbeat 仅作用于下位机心跳与本机 CE 校时应答；不屏蔽 FC 治疗应答壳。"""
         if not self.log_receive_enabled:
             return False
-        if self.log_heartbeat_enabled:
+        if self._is_stim_shell_treat_done_fc(data):
             return True
-        return not self._is_heartbeat_frame(data)
+        if self._is_uplink_timesync_ce_frame(data) or self._is_downlink_device_heartbeat_frame(data):
+            return bool(self.log_heartbeat_enabled)
+        return True
 
-    def _is_heartbeat_frame(self, data: bytes) -> bool:
+    def _is_stim_shell_treat_done_fc(self, data: bytes) -> bool:
+        """55 AA 0D + EA/EB/FA/FB + 第5字节 FC（0-based 索引4），定长 13 字节。"""
         if len(data) != HeartbeatFrame.FRAME_SIZE:
             return False
-        if data[0:2] != HeartbeatFrame.FRAME_HEADER:
+        if data[0:2] != HeartbeatFrame.FRAME_HEADER or data[2] != HeartbeatFrame.FRAME_LENGTH:
             return False
-        if data[2] != HeartbeatFrame.FRAME_LENGTH:
+        if data[3] not in self._STIM_DEVICE_CODES:
             return False
-        if data[3] == HeartbeatFrame.SET_TIME_COMMAND:
-            expected_checksum = HeartbeatFrame.calculate_crc16(bytearray(data[:HeartbeatFrame.FRAME_DATA_SIZE]))
-            return data[HeartbeatFrame.FRAME_DATA_SIZE:HeartbeatFrame.FRAME_SIZE] == expected_checksum
+        return data[4] == self._STIM_FRAME_TYPE_TREAT_DONE
+
+    def _is_uplink_timesync_ce_frame(self, data: bytes) -> bool:
+        """本机发出的校时应答：55 AA 0D CE + CRC。"""
+        if len(data) != HeartbeatFrame.FRAME_SIZE:
+            return False
+        if data[0:2] != HeartbeatFrame.FRAME_HEADER or data[2] != HeartbeatFrame.FRAME_LENGTH:
+            return False
+        if data[3] != HeartbeatFrame.SET_TIME_COMMAND:
+            return False
+        expected = HeartbeatFrame.calculate_crc16(bytearray(data[: HeartbeatFrame.FRAME_DATA_SIZE]))
+        return data[HeartbeatFrame.FRAME_DATA_SIZE : HeartbeatFrame.FRAME_SIZE] == expected
+
+    def _is_downlink_device_heartbeat_frame(self, data: bytes) -> bool:
+        """下位机发来的心跳请求（E0/F0 侧 + 0xFB 标志等）。"""
         return HeartbeatFrame.is_heartbeat_request(data, self.logger)
-    
+
     @staticmethod
     def list_available_ports() -> list:
         """

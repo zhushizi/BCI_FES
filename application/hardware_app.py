@@ -49,5 +49,9 @@ class HardwareApp:
         return self.hardware_service.list_available_port_details()
 
     def set_nes_port(self, next_port: str) -> bool:
-        """切换 NES 串口端口。"""
+        """切换左腿 NES 串口端口。"""
         return self.hardware_service.switch_port(next_port)
+
+    def set_nes_port_right(self, next_port: str) -> bool:
+        """切换右腿 NES 串口端口。"""
+        return self.hardware_service.switch_port_right(next_port)

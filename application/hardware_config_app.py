@@ -75,6 +75,9 @@ class HardwareConfigApp:
     def get_nes_port(self) -> Optional[str]:
         return str(self._config_app.get("NES_port") or "").strip() or None
 
+    def get_nes_port_2(self) -> Optional[str]:
+        return str(self._config_app.get("NES_port_2") or "").strip() or None
+
     def set_decoder_port(self, port: str) -> bool:
         next_port = str(port or "").strip()
         if not next_port:
@@ -100,5 +103,19 @@ class HardwareConfigApp:
                 return bool(self._hardware_app.set_nes_port(next_port))
             except Exception as exc:
                 self._logger.warning("切换串口异常: %s", exc)
+                return False
+        return True
+
+    def set_nes_port_2(self, port: str) -> bool:
+        next_port = str(port or "").strip()
+        if not next_port:
+            return False
+        if not self._config_app.set("NES_port_2", next_port):
+            return False
+        if self._hardware_app:
+            try:
+                return bool(self._hardware_app.set_nes_port_right(next_port))
+            except Exception as exc:
+                self._logger.warning("切换右腿 NES 串口异常: %s", exc)
                 return False
         return True

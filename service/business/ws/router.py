@@ -53,19 +53,22 @@ class WsMessageRouter:
         impedance_service: Optional[ImpedanceTestService] = None,
         stim_service: Optional["StimTestService"] = None,
         serial_hw: Optional["SerialHardware"] = None,
+        serial_hw_right: Optional["SerialHardware"] = None,
     ) -> None:
         self.ws = ws
         self.logger = logging.getLogger(__name__)
         self.impedance_service = impedance_service
         self.stim_service = stim_service
         self.serial_hw = serial_hw
+        self.serial_hw_right = serial_hw_right
         self._on_action_command: Optional[Callable[[int, str, str], bool]] = None
         self._on_stop_session: Optional[Callable[[Optional[float]], None]] = None
         self._on_decoder_ready: Optional[Callable[[Dict[str, Any]], None]] = None
         self._on_decoder_session_info: Optional[Callable[[Dict[str, Any]], None]] = None
         self._on_system_ping: Optional[Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]] = None
         self._pending_action_store = PendingActionStore()
-        self._serial_callback_registered = False
+        self._serial_callback_left_registered = False
+        self._serial_callback_right_registered = False
         self._paradigm_handler = ParadigmHandler(
             logger=self.logger,
             on_action_command=self._handle_action_command,
@@ -75,12 +78,33 @@ class WsMessageRouter:
             channel_left=self.CHANNEL_LEFT,
             channel_right=self.CHANNEL_RIGHT,
         )
-        self._serial_handler = SerialHandler(
-            ws=self.ws,
-            logger=self.logger,
-            pending_action_store=self._pending_action_store,
-            treat_ok_token=self.TOKEN_TREAT_OK,
-        )
+        # 单串口：不校验 channel；双串口：左右各订阅，仅消费本侧应答
+        if serial_hw_right is None:
+            self._serial_handler_mono = SerialHandler(
+                ws=self.ws,
+                logger=self.logger,
+                pending_action_store=self._pending_action_store,
+                treat_ok_token=self.TOKEN_TREAT_OK,
+                expected_channel=None,
+            )
+            self._serial_handler_left = self._serial_handler_mono
+            self._serial_handler_right = self._serial_handler_mono
+        else:
+            self._serial_handler_mono = None
+            self._serial_handler_left = SerialHandler(
+                ws=self.ws,
+                logger=self.logger,
+                pending_action_store=self._pending_action_store,
+                treat_ok_token=self.TOKEN_TREAT_OK,
+                expected_channel=self.CHANNEL_LEFT,
+            )
+            self._serial_handler_right = SerialHandler(
+                ws=self.ws,
+                logger=self.logger,
+                pending_action_store=self._pending_action_store,
+                treat_ok_token=self.TOKEN_TREAT_OK,
+                expected_channel=self.CHANNEL_RIGHT,
+            )
         self._stop_session_handler = StopSessionHandler(
             logger=self.logger,
             on_stop_session=self._handle_stop_session,
@@ -119,6 +143,11 @@ class WsMessageRouter:
 
     def set_serial_hw(self, serial_hw: "SerialHardware") -> None:
         self.serial_hw = serial_hw
+        self._ensure_serial_callback()
+
+    def set_serial_hw_right(self, serial_hw_right: Optional["SerialHardware"]) -> None:
+        """运行时更新右腿串口（一般不在此路径使用，以启动装配为准）。"""
+        self.serial_hw_right = serial_hw_right
         self._ensure_serial_callback()
 
     # ---------- handlers ----------
@@ -161,22 +190,32 @@ class WsMessageRouter:
 
     # ---------- helpers ----------
     def _ensure_serial_callback(self) -> None:
-        if self._serial_callback_registered or not self.serial_hw:
-            return
-        try:
-            self.serial_hw.add_data_received_callback(self._on_serial_data)
-            self._serial_callback_registered = True
-        except Exception as e:
-            self.logger.error(f"注册串口回调失败: {e}")
+        if self.serial_hw and not self._serial_callback_left_registered:
+            try:
+                self.serial_hw.add_data_received_callback(self._on_serial_data_left)
+                self._serial_callback_left_registered = True
+            except Exception as e:
+                self.logger.error(f"注册左腿串口回调失败: {e}")
+        if self.serial_hw_right and not self._serial_callback_right_registered:
+            try:
+                self.serial_hw_right.add_data_received_callback(self._on_serial_data_right)
+                self._serial_callback_right_registered = True
+            except Exception as e:
+                self.logger.error(f"注册右腿串口回调失败: {e}")
 
-    def _on_serial_data(self, data: bytes) -> None:
-        self._serial_handler.on_serial_data(data)
+    def _on_serial_data_left(self, data: bytes) -> None:
+        self._serial_handler_left.on_serial_data(data)
+
+    def _on_serial_data_right(self, data: bytes) -> None:
+        self._serial_handler_right.on_serial_data(data)
 
     def _on_main_stop_session(self, msg: Dict[str, Any]) -> None:
         self._stop_session_handler.on_main_stop_session(msg)
 
     def _contains_treat_ok(self, data: bytes) -> bool:
-        return self._serial_handler.contains_treat_ok(data)
+        if self._serial_handler_mono is not None:
+            return self._serial_handler_mono.contains_treat_ok(data)
+        return self._serial_handler_left.contains_treat_ok(data) or self._serial_handler_right.contains_treat_ok(data)
 
     def _handle_action_command(self, trial_index: int, action: str, channel: str) -> bool:
         if not self._on_action_command:

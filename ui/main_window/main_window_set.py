@@ -27,6 +27,7 @@ class SetPageController:
         self.logger = logger or logging.getLogger(__name__)
         self.decoder_port = str(decoder_port or "").strip() or None
         self.nes_port = None
+        self.nes_port_2 = None
         self.hardware_config_app = hardware_config_app
         self._endpoint_volume = None
         self._audio_endpoint_unavailable = False
@@ -40,6 +41,9 @@ class SetPageController:
         safe_connect(self.logger, getattr(combo, "currentIndexChanged", None), self._on_decoder_port_changed)
         nes_combo = get_ui_attr(self.ui, "comboBox_NES_port")
         safe_connect(self.logger, getattr(nes_combo, "currentIndexChanged", None), self._on_nes_port_changed)
+        nes2_combo = get_ui_attr(self.ui, "comboBox_NES_port_2")
+        if nes2_combo is not None:
+            safe_connect(self.logger, getattr(nes2_combo, "currentIndexChanged", None), self._on_nes_port_2_changed)
         slider = get_ui_attr(self.ui, "horizontalSlider_volume")
         if slider is None:
             self.logger.warning("未找到音量滑条: horizontalSlider_volume")
@@ -61,6 +65,7 @@ class SetPageController:
         if self.hardware_config_app:
             self.decoder_port = self.hardware_config_app.get_decoder_port() or self.decoder_port
             self.nes_port = self.hardware_config_app.get_nes_port()
+            self.nes_port_2 = self.hardware_config_app.get_nes_port_2()
         port_details = self._list_available_port_details()
         detected = self._classify_ports(port_details)
         auto_decoder = detected.get("decoder_port")
@@ -96,6 +101,16 @@ class SetPageController:
             if self.nes_port:
                 self._set_combo_by_port(nes_combo, self.nes_port)
             nes_combo.blockSignals(prev_block)
+        nes2_combo = get_ui_attr(self.ui, "comboBox_NES_port_2")
+        if nes2_combo:
+            prev_block = nes2_combo.blockSignals(True)
+            nes2_combo.clear()
+            options2 = self._build_port_options(port_details=port_details, preferred_port=self.nes_port_2, role="nes")
+            for display, port in options2:
+                nes2_combo.addItem(display, port)
+            if self.nes_port_2:
+                self._set_combo_by_port(nes2_combo, self.nes_port_2)
+            nes2_combo.blockSignals(prev_block)
         self._init_volume_controls()
 
     def refresh(self):
@@ -277,6 +292,19 @@ class SetPageController:
             ok = self.hardware_config_app.set_nes_port(next_port)
             if not ok:
                 self.logger.warning("切换串口失败: %s", next_port)
+
+    def _on_nes_port_2_changed(self, _index: int) -> None:
+        combo = get_ui_attr(self.ui, "comboBox_NES_port_2")
+        next_port = self._get_selected_port(combo)
+        if not next_port:
+            return
+        if self.nes_port_2 == next_port:
+            return
+        self.nes_port_2 = next_port
+        if self.hardware_config_app:
+            ok = self.hardware_config_app.set_nes_port_2(next_port)
+            if not ok:
+                self.logger.warning("切换右腿 NES 串口失败: %s", next_port)
 
     def _list_available_ports(self) -> list[str]:
         if not self.hardware_config_app:

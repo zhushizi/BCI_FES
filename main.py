@@ -78,8 +78,9 @@ from ui.main_window.sub_window import SubWindow
 
 @dataclass(frozen=True)
 class AppConfig:
-    # 串口默认值改由 config.json 的 NES_port 或命令行 --com 提供，这里不再硬编码
+    # 串口默认值改由 config.json 的 NES_port / NES_port_2 或命令行 --com / --com-right 提供
     com_port: str = ""
+    com_port_right: str = ""
     ws_url: str = "ws://127.0.0.1:8080"
     log_receive_enabled: bool = False
     log_heartbeat_enabled: bool = False
@@ -105,8 +106,10 @@ class ServiceBundle:
     report_service: ReportService
     session_service: SessionService
     serial_hw: SerialHardware
+    serial_hw_right: Optional[SerialHardware]
     hardware_service: StimTestService
     pingpong_service: HardwarePingPongService
+    pingpong_service_right: Optional[HardwarePingPongService]
     ws_service: MainWebSocketService
     ws_notify_service: WsNotifyService
     impedance_service: ImpedanceTestService
@@ -155,17 +158,31 @@ def build_services(config: AppConfig) -> ServiceBundle:
     report_service = ReportService(db_service)
     session_service = SessionService(db_service)
 
-    # 硬件服务（串口与治疗命令）
+    # 硬件服务（串口与治疗命令）：左腿口 + 可选右腿口
     serial_hw = SerialHardware(
-        port = config.com_port,
-        log_receive_enabled = config.log_receive_enabled,
-        log_heartbeat_enabled = config.log_heartbeat_enabled,
+        port=config.com_port,
+        log_receive_enabled=config.log_receive_enabled,
+        log_heartbeat_enabled=config.log_heartbeat_enabled,
+        leg_side_label="左",
     )
     if not serial_hw.connect():
-        logger.warning("串口连接失败: %s", config.com_port)
-    # 治疗/电刺激指令服务（原 HardwareTreatmentService 已迁移到 StimTestService）
-    hardware_service = StimTestService(serial_hw)
+        logger.warning("左腿 NES 串口连接失败: %s", config.com_port)
+
+    serial_hw_right: Optional[SerialHardware] = None
+    right_port = str(getattr(config, "com_port_right", "") or "").strip()
+    if right_port:
+        serial_hw_right = SerialHardware(
+            port=right_port,
+            log_receive_enabled=config.log_receive_enabled,
+            log_heartbeat_enabled=config.log_heartbeat_enabled,
+            leg_side_label="右",
+        )
+        if not serial_hw_right.connect():
+            logger.warning("右腿 NES 串口连接失败: %s", right_port)
+
+    hardware_service = StimTestService(serial_hw, serial_hw_right)
     pingpong_service = HardwarePingPongService(serial_hw)
+    pingpong_service_right = HardwarePingPongService(serial_hw_right) if serial_hw_right else None
 
     # 三方通讯（主控角色）：连接本地 WebSocket(JSON-RPC) 服务器并注册 main
     # 主控端不需要主动发送心跳（避免对端回 pong 导致控制台刷屏）；仍保留被动处理对端 ping 的兼容逻辑
@@ -184,6 +201,7 @@ def build_services(config: AppConfig) -> ServiceBundle:
         impedance_service=impedance_service,
         stim_service=hardware_service,
         serial_hw=serial_hw,
+        serial_hw_right=serial_hw_right,
     )
     ws_router.register_handlers()
 
@@ -200,8 +218,10 @@ def build_services(config: AppConfig) -> ServiceBundle:
         report_service=report_service,
         session_service=session_service,
         serial_hw=serial_hw,
+        serial_hw_right=serial_hw_right,
         hardware_service=hardware_service,
         pingpong_service=pingpong_service,
+        pingpong_service_right=pingpong_service_right,
         ws_service=ws_service,
         ws_notify_service=ws_notify_service,
         impedance_service=impedance_service,
@@ -284,6 +304,8 @@ def connect_shutdown(
     """应用退出时确保断开并关闭本程序启动的服务器进程。"""
     app.aboutToQuit.connect(lambda: services.ws_service.stop())
     app.aboutToQuit.connect(lambda: services.serial_hw.disconnect())
+    if services.serial_hw_right is not None:
+        app.aboutToQuit.connect(lambda: services.serial_hw_right.disconnect())
     if decoder_app:
         app.aboutToQuit.connect(decoder_app.stop)
     if ws_server_process is not None:
@@ -366,6 +388,7 @@ def create_main_window(
         apps.training_flow_app,
         apps.hardware_config_app,
         hide_subprocess_console=hide_subprocess_console,
+        pingpong_service_right=services.pingpong_service_right,
     )
 
     # 阻抗/脑电回调：WS 线程 -> Qt UI 线程
@@ -531,7 +554,14 @@ def main() -> None:
         config_data["NES_port"] = detected_nes_port
         config_data["decoder_port"] = detected_decoder_port
         logger.info("自动检测串口成功: 脑机设备=%s, 神经肌肉电刺激设备=%s", detected_decoder_port, detected_nes_port)
-    parser.add_argument("--com", dest="com_port", default=default_com, help="串口号（神经肌肉电刺激），默认从 config.json 的 NES_port 读取")
+    parser.add_argument("--com", dest="com_port", default=default_com, help="串口号（神经肌肉电刺激左腿），默认从 config.json 的 NES_port 读取")
+    default_nes2 = str(config_data.get("NES_port_2") or "").strip()
+    parser.add_argument(
+        "--com-right",
+        dest="com_port_right",
+        default=default_nes2,
+        help="右腿 NES 串口号，默认从 config.json 的 NES_port_2 读取；空则单串口模式",
+    )
     parser.add_argument("--ws", dest="ws_url", default=AppConfig.ws_url, help="WebSocket 地址")
     parser.add_argument(
         "--log-recv",
@@ -546,9 +576,14 @@ def main() -> None:
         dest="log_heartbeat_enabled",
         action="store_true",
         default=bool(config_data.get("log_heartbeat_enabled", AppConfig.log_heartbeat_enabled)),
-        help="启用下位机心跳帧日志",
+        help="在已启用串口接收日志时，额外打印下位机心跳帧与本机 CE 校时应答（不抑制 FC 治疗应答等其它帧）",
     )
-    parser.add_argument("--no-log-heartbeat", dest="log_heartbeat_enabled", action="store_false", help="关闭下位机心跳帧日志")
+    parser.add_argument(
+        "--no-log-heartbeat",
+        dest="log_heartbeat_enabled",
+        action="store_false",
+        help="不打印下位机心跳帧与本机 CE 校时应答（其它帧仍随 --log-recv 打印）",
+    )
     parser.add_argument(
         "--ws-heartbeat",
         dest="ws_enable_heartbeat",
@@ -609,6 +644,7 @@ def main() -> None:
     # 组合根：在入口统一装配依赖（UI -> 应用层 -> 服务层 -> 基础设施）
     config = AppConfig(
         com_port=args.com_port,
+        com_port_right=str(getattr(args, "com_port_right", "") or "").strip(),
         ws_url=args.ws_url,
         log_receive_enabled=args.log_receive_enabled,
         log_heartbeat_enabled=args.log_heartbeat_enabled,

@@ -1,9 +1,10 @@
 {
     "NES_port": "COM7",
+    "NES_port_2": "COM8",
     "decoder_port": "COM4",
     "ws_url": "ws://127.0.0.1:8080",
     "log_receive_enabled": true,
-    "log_heartbeat_enabled": true,
+    "log_heartbeat_enabled": false,
     "ws_enable_heartbeat": false,
     "ws_max_message_size": 4194304,
     "swap_screens": false,

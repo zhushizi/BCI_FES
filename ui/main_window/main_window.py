@@ -67,6 +67,7 @@ class MainWindow(QWidget):
         training_flow_app=None,
         hardware_config_app=None,
         hide_subprocess_console: bool = False,
+        pingpong_service_right=None,
     ):
         super().__init__()
 
@@ -87,7 +88,8 @@ class MainWindow(QWidget):
         self.session_app = session_app  # 治疗会话应用层
         self.sub_window = sub_window  # 副窗口引用
         self.hardware_app = hardware_app  # 硬件应用层（推荐）
-        self.pingpong_service = pingpong_service  # 硬件心跳保活服务（可选）
+        self.pingpong_service = pingpong_service  # 硬件心跳保活服务（左腿 NES，可选）
+        self.pingpong_service_right = pingpong_service_right  # 右腿 NES 心跳（可选）
         self.ws_service = ws_service
         self.config_app = config_app
         self.reaction_time_app = reaction_time_app

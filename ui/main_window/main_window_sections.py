@@ -182,13 +182,25 @@ class MainWindowDeviceStatus:
                         interval_sec = 3.0
                 self._host.pingpong_service.configure(interval_sec=interval_sec, timeout_sec=5.0)
 
-                def _cb(alive: bool, last_seen_sec):
-                    self._host.pingpong_status_changed.emit(bool(alive), last_seen_sec)
+                def _emit_combined_pingpong(_alive: bool = False, last_seen_sec=None):
+                    left_svc = self._host.pingpong_service
+                    right_svc = getattr(self._host, "pingpong_service_right", None)
+                    alive_l, sec_l = left_svc.get_current_status() if left_svc else (False, None)
+                    alive_r, sec_r = right_svc.get_current_status() if right_svc else (False, None)
+                    combined = bool(alive_l or alive_r)
+                    # 展示用：任一侧有 last_seen 则取较小非空间隔
+                    secs = [s for s in (sec_l, sec_r) if s is not None]
+                    merged_sec = min(secs) if secs else last_seen_sec
+                    self._host.pingpong_status_changed.emit(combined, merged_sec)
 
-                self._host.pingpong_service.set_status_callback(_cb)
+                self._host.pingpong_service.set_status_callback(_emit_combined_pingpong)
                 self._host.pingpong_service.enable()
-                alive, last_seen_sec = self._host.pingpong_service.get_current_status()
-                self._host.pingpong_status_changed.emit(alive, last_seen_sec)
+                right_svc = getattr(self._host, "pingpong_service_right", None)
+                if right_svc:
+                    right_svc.configure(interval_sec=interval_sec, timeout_sec=5.0)
+                    right_svc.set_status_callback(_emit_combined_pingpong)
+                    right_svc.enable()
+                _emit_combined_pingpong()
             except Exception as e:
                 self._host.logger.error(f"心跳服务初始化失败: {e}")
 

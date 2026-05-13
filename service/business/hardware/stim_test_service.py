@@ -58,10 +58,23 @@ class StimTestService:
     DEFAULT_RISE_TIME = 5
     DEFAULT_DOWN_TIME = 5
 
-    def __init__(self, serial_hardware: SerialHardware):
-        self.serial_hw = serial_hardware
+    def __init__(self, serial_hardware_left: SerialHardware, serial_hardware_right: Optional[SerialHardware] = None):
+        """
+        serial_hardware_left: 左腿 NES 控制器串口
+        serial_hardware_right: 右腿 NES 控制器串口；为 None 时右腿指令仍走左腿口（单口兼容）
+        """
+        self.serial_hw_left = serial_hardware_left
+        self.serial_hw_right = serial_hardware_right
+        # 兼容旧代码：serial_hw 指向左腿口
+        self.serial_hw = serial_hardware_left
         self.logger = logging.getLogger(__name__)
         self.log_send_enabled = False  # 不打印发送给 hardware 的指令
+
+    def _serial_for_device(self, device: int) -> SerialHardware:
+        d = int(device)
+        if self.serial_hw_right is not None and d in (self.DEVICE_RIGHT_THIGH, self.DEVICE_RIGHT_CALF):
+            return self.serial_hw_right
+        return self.serial_hw_left
 
     # --------- 串口管理（供应用层调用） ---------
     def list_available_ports(self) -> list[str]:
@@ -79,18 +92,28 @@ class StimTestService:
             return []
 
     def switch_port(self, next_port: str) -> bool:
-        """切换串口端口并重连。"""
+        """切换左腿 NES 串口端口并重连。"""
+        return self._switch_port_on(self.serial_hw_left, next_port)
+
+    def switch_port_right(self, next_port: str) -> bool:
+        """切换右腿 NES 串口端口并重连。"""
+        if self.serial_hw_right is None:
+            self.logger.warning("未配置右腿 NES 串口对象，无法切换端口")
+            return False
+        return self._switch_port_on(self.serial_hw_right, next_port)
+
+    def _switch_port_on(self, hw: SerialHardware, next_port: str) -> bool:
         port = str(next_port or "").strip()
         if not port:
             return False
-        if self.serial_hw.port == port and self.serial_hw.is_connected():
+        if hw.port == port and hw.is_connected():
             return True
         try:
-            self.serial_hw.disconnect()
+            hw.disconnect()
         except Exception:
             pass
-        self.serial_hw.port = port
-        return bool(self.serial_hw.connect())
+        hw.port = port
+        return bool(hw.connect())
 
     # --------- 兼容接口（原 HardwareTreatmentService） ---------
     def start_treatment(self) -> bool:
@@ -319,6 +342,12 @@ class StimTestService:
             return current
         return max(0, min(self.CURRENT_MAX_OUTPUT, current))
 
+    def _serial_for_device(self, device: int) -> SerialHardware:
+        d = int(device)
+        if self.serial_hw_right is not None and d in (self.DEVICE_RIGHT_THIGH, self.DEVICE_RIGHT_CALF):
+            return self.serial_hw_right
+        return self.serial_hw_left
+
     # ------------------ 内部工具 ------------------
     def _log_send(self, packet: bytes, success: bool, desc: str = "") -> None:
         if not self.log_send_enabled:
@@ -345,7 +374,7 @@ class StimTestService:
             pulse_width=pulse_width,
             frequency=frequency,
         )
-        success = self.serial_hw.send_data(packet)
+        success = self._serial_for_device(device).send_data(packet)
         self._log_send(packet, success, desc=desc)
         return success
 
@@ -368,6 +397,6 @@ class StimTestService:
             down_time=down_time,
             reserved_byte=reserved_byte,
         )
-        success = self.serial_hw.send_data(packet)
+        success = self._serial_for_device(device).send_data(packet)
         self._log_send(packet, success, desc=desc)
         return success

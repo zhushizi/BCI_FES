@@ -18,6 +18,7 @@ class ActionCommand:
 class PendingAction:
     trial_index: int
     action: str
+    channel: str
 
 
 class PendingActionStore:
@@ -60,7 +61,7 @@ class ParadigmHandler:
         except Exception as e:
             self._logger.error(f"下发动作指令失败: {e}")
         if ok:
-            self._pending_action_store.value = PendingAction(cmd.trial_index, cmd.action)
+            self._pending_action_store.value = PendingAction(cmd.trial_index, cmd.action, cmd.channel)
 
     def _parse_action_command(self, msg: Dict[str, Any]) -> Optional[ActionCommand]:
         params = msg.get("params") or {}
@@ -76,6 +77,7 @@ class ParadigmHandler:
 
 class SerialHandler:
     """接收串口数据并识别治疗完成：55 AA 0D [设备] FC A1（与刺激帧同壳）；仍兼容旧版 Treat_OK 文本。分片到达时做缓冲。"""
+
     MAX_RECV_BUFFER = 256
 
     def __init__(
@@ -85,11 +87,18 @@ class SerialHandler:
         logger: logging.Logger,
         pending_action_store: PendingActionStore,
         treat_ok_token: str,
+        expected_channel: Optional[str] = None,
     ) -> None:
+        """
+        expected_channel:
+        - "left" / "right"：仅当待完成动作 channel 与本侧串口一致时才消费应答（双 NES 口）。
+        - None：不校验 channel（单串口兼容旧行为）。
+        """
         self._ws = ws
         self._logger = logger
         self._pending_action_store = pending_action_store
         self._treat_ok_token = treat_ok_token
+        self._expected_channel = expected_channel
         self._recv_buffer = bytearray()
 
     def on_serial_data(self, data: bytes) -> None:
@@ -104,8 +113,17 @@ class SerialHandler:
             self._logger.warning("收到治疗完成应答，但无待完成动作")
             self._recv_buffer.clear()
             return
-        trial_index = self._pending_action_store.value.trial_index
-        action = self._pending_action_store.value.action
+        pending = self._pending_action_store.value
+        if self._expected_channel is not None and pending.channel != self._expected_channel:
+            self._logger.warning(
+                "收到治疗完成应答与本侧串口不匹配，已忽略: side=%s pending_channel=%s",
+                self._expected_channel,
+                pending.channel,
+            )
+            self._recv_buffer.clear()
+            return
+        trial_index = pending.trial_index
+        action = pending.action
         self._pending_action_store.value = None
         self._recv_buffer.clear()
         self._send_action_complete(trial_index, action)
