@@ -9,7 +9,7 @@ from application.stim_test_app import StimTestApp
 class ParadigmActionApp:
     """范式动作指令应用层：编排 session 与刺激指令下发。"""
 
-    TIME_BYTE = 0x06
+    TIME_BYTE = 0x06  # 训练第二帧刺激时长兜底默认；优先取 treat_params.stim_time_byte
     START_STIM_TIME = 0x0A
     START_RISE_TIME = 0x05
     START_DOWN_TIME = 0x05
@@ -41,6 +41,8 @@ class ParadigmActionApp:
         frequency = int(freq_idx or 20)
         current_val = int(current or 0)
         pulse_width = int(pulse_width_idx or 0) + 1
+        # 刺激时长跟随 UI horizontalScrollBar_time_stim 设置（保存在 treat_params.stim_time_byte）
+        stim_time_byte = int(getattr(treat_params, "stim_time_byte", 0) or 0) or self.TIME_BYTE
         leg_part = self._resolve_leg_part_from_session()
         device = self._stim_app.device_code_for(channel, leg_part)
 
@@ -63,7 +65,7 @@ class ParadigmActionApp:
             self._stim_app.send_advanced_params(
                 device=device,
                 current=current_val,
-                stim_time=self.TIME_BYTE,
+                stim_time=stim_time_byte,
                 rise_time=self.START_RISE_TIME,
                 down_time=self.START_DOWN_TIME,
                 reserved_byte=self.ADVANCED_RESERVED_TRAINING,

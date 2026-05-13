@@ -636,6 +636,20 @@ class StimTestController:
             self._logger.exception("读取时间拖条失败: %s", name)
             return self._default_time_scroll_value(name)
 
+    def _set_time_scrollbar_value(self, name: str, value: int | None) -> None:
+        """回填时间拖条 UI 值。屏蔽信号避免重复下发；与缓存参数保持一致。"""
+        scrollbar = get_ui_attr(self.ui, name)
+        if scrollbar is None:
+            return
+        norm = self._normalize_time_scroll_value(name, value)
+        try:
+            old_block = scrollbar.blockSignals(True)
+            scrollbar.setValue(norm)
+            scrollbar.blockSignals(old_block)
+            self._update_time_scrollbar_display(name, norm)
+        except Exception:
+            self._logger.exception("设置时间拖条失败: %s", name)
+
     def _normalize_current_value(self, value: int) -> int:
         current = int(value)
         if current in (self._CURRENT_MODE_START, self._CURRENT_MODE_STOP):
@@ -1042,12 +1056,18 @@ QScrollBar::sub-line:horizontal {
                 right_freq_idx=self._default_params.get("left_freq_idx", 0),
                 left_pulse_width_idx=0,
                 right_pulse_width_idx=0,
+                stim_time_byte=self._get_time_scrollbar_value("horizontalScrollBar_time_stim"),
             )
             if self.session_app:
                 try:
                     self.session_app.save_treat_params(params)
                 except Exception:
                     self._logger.exception("初始化治疗参数失败: %s", pid)
+
+        self._set_time_scrollbar_value(
+            "horizontalScrollBar_time_stim",
+            getattr(params, "stim_time_byte", None),
+        )
 
         selected = channel or self._selected_leg_channel()
         if selected == "right":
@@ -1083,6 +1103,7 @@ QScrollBar::sub-line:horizontal {
             current_scheme_idx = self._get_combo_index("comboBox_left_scheme") or 0
             current_freq_idx = self._get_freq_value()
             current_pulse_width_idx = self._get_combo_index("comboBox_pulse_width") or 0
+            current_stim_time_byte = self._get_time_scrollbar_value("horizontalScrollBar_time_stim")
             if self._selected_leg_channel() == "right":
                 left_grade = getattr(params, "left_grade", 0)
                 left_scheme_idx = getattr(params, "left_scheme_idx", self._default_params.get("left_scheme_idx", 0))
@@ -1112,6 +1133,7 @@ QScrollBar::sub-line:horizontal {
                     right_freq_idx=right_freq_idx,
                     left_pulse_width_idx=left_pulse_width_idx,
                     right_pulse_width_idx=right_pulse_width_idx,
+                    stim_time_byte=current_stim_time_byte,
                 )
             )
         except Exception:

@@ -17,6 +17,7 @@ class PatientTreatParams:
     - left/right_grade: 0~99
     - left/right_scheme_idx: UI 下拉框索引（0/1）
     - left/right_freq_idx: 刺激频率，单位 ms（20..100）
+    - stim_time_byte: 刺激时长（UI horizontalScrollBar_time_stim），训练阶段下发协议中使用
     """
 
     patient_id: str
@@ -28,6 +29,7 @@ class PatientTreatParams:
     right_freq_idx: int = 20
     left_pulse_width_idx: int = 0
     right_pulse_width_idx: int = 0
+    stim_time_byte: int = 6
 
 
 @dataclass
