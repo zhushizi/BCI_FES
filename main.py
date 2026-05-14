@@ -253,6 +253,7 @@ def build_apps(services: ServiceBundle, decoder_manager: DecoderProcessManager) 
 
     paradigm_action_app = ParadigmActionApp(session_app, stim_app)
     services.ws_router.set_on_action_command(paradigm_action_app.handle_action_command)
+    services.ws_router.set_paradigm_fc_a1_ack_handler(paradigm_action_app.send_stop_advanced_after_fc_a1)
 
     ws_message_app = WsMessageApp(
         services.ws_notify_service,

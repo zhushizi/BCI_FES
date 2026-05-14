@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from application.session_app import SessionApp
 from application.stim_test_app import StimTestApp
@@ -14,8 +15,11 @@ class ParadigmActionApp:
     START_RISE_TIME = 0x05
     START_DOWN_TIME = 0x05
     CURRENT_MODE_START = 0xEF
+    CURRENT_MODE_STOP = 0xFF  # 高级参数帧「电流/启停」字节：结束当前模式（与 StimFrame 一致）
     # 高级参数帧第 9 字节（保留位）：训练范式下发专用；电刺激测试页仍用 UI 侧 0x02
     ADVANCED_RESERVED_TRAINING = 0xFF
+    # 治疗/范式下发：高级起帧、基础参数、高级电流帧 三条之间间隔，便于下位机逐条识别
+    INTER_CMD_DELAY_SEC = 1.0
 
     def __init__(self, session_app: SessionApp, stim_app: StimTestApp) -> None:
         self._session_app = session_app
@@ -56,12 +60,14 @@ class ParadigmActionApp:
                 down_time=self.START_DOWN_TIME,
                 reserved_byte=self.ADVANCED_RESERVED_TRAINING,
             )
+            time.sleep(self.INTER_CMD_DELAY_SEC)
             self._stim_app.send_basic_params(
                 device=device,
                 waveform=scheme,
                 pulse_width=pulse_width,
                 frequency=frequency,
             )
+            time.sleep(self.INTER_CMD_DELAY_SEC)
             self._stim_app.send_advanced_params(
                 device=device,
                 current=current_val,
@@ -74,6 +80,31 @@ class ParadigmActionApp:
         except Exception as exc:
             self._logger.error("下发动作指令失败: %s", exc)
             return False
+
+    def send_stop_advanced_after_fc_a1(self, channel: str) -> None:
+        """训练流程：下位机回报 FC A1 治疗完成后再发一条高级参数帧，电流字节 0xFF 显式停止。"""
+        patient_id = self._session_app.get_current_patient_id()
+        if not patient_id:
+            self._logger.warning("FC A1 后下发停止帧：无当前患者，已跳过")
+            return
+        treat_params = self._session_app.load_treat_params(patient_id)
+        if not treat_params:
+            self._logger.warning("FC A1 后下发停止帧：无治疗参数，已跳过")
+            return
+        stim_time_byte = int(getattr(treat_params, "stim_time_byte", 0) or 0) or self.TIME_BYTE
+        leg_part = self._resolve_leg_part_from_session()
+        device = self._stim_app.device_code_for(channel, leg_part)
+        try:
+            self._stim_app.send_advanced_params(
+                device=device,
+                current=self.CURRENT_MODE_STOP,
+                stim_time=stim_time_byte,
+                rise_time=self.START_RISE_TIME,
+                down_time=self.START_DOWN_TIME,
+                reserved_byte=self.ADVANCED_RESERVED_TRAINING,
+            )
+        except Exception:
+            self._logger.exception("FC A1 后下发训练停止高级参数失败")
 
     def _resolve_leg_part_from_session(self) -> str:
         """从当前会话解析刺激部位，兼容 gou/tai 与中文。"""

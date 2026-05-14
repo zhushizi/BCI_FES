@@ -66,6 +66,7 @@ class WsMessageRouter:
         self._on_decoder_ready: Optional[Callable[[Dict[str, Any]], None]] = None
         self._on_decoder_session_info: Optional[Callable[[Dict[str, Any]], None]] = None
         self._on_system_ping: Optional[Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]] = None
+        self._paradigm_fc_a1_ack_handler: Optional[Callable[[str], None]] = None
         self._pending_action_store = PendingActionStore()
         self._serial_callback_left_registered = False
         self._serial_callback_right_registered = False
@@ -86,6 +87,7 @@ class WsMessageRouter:
                 pending_action_store=self._pending_action_store,
                 treat_ok_token=self.TOKEN_TREAT_OK,
                 expected_channel=None,
+                on_fc_a1_treat_success=self._emit_paradigm_fc_a1_ack,
             )
             self._serial_handler_left = self._serial_handler_mono
             self._serial_handler_right = self._serial_handler_mono
@@ -97,6 +99,7 @@ class WsMessageRouter:
                 pending_action_store=self._pending_action_store,
                 treat_ok_token=self.TOKEN_TREAT_OK,
                 expected_channel=self.CHANNEL_LEFT,
+                on_fc_a1_treat_success=self._emit_paradigm_fc_a1_ack,
             )
             self._serial_handler_right = SerialHandler(
                 ws=self.ws,
@@ -104,6 +107,7 @@ class WsMessageRouter:
                 pending_action_store=self._pending_action_store,
                 treat_ok_token=self.TOKEN_TREAT_OK,
                 expected_channel=self.CHANNEL_RIGHT,
+                on_fc_a1_treat_success=self._emit_paradigm_fc_a1_ack,
             )
         self._stop_session_handler = StopSessionHandler(
             logger=self.logger,
@@ -137,6 +141,15 @@ class WsMessageRouter:
 
     def set_on_system_ping(self, handler: Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]) -> None:
         self._on_system_ping = handler
+
+    def set_paradigm_fc_a1_ack_handler(self, handler: Optional[Callable[[str], None]]) -> None:
+        """训练范式：串口收到 FC A1 治疗完成时，在回 main.exo_action_complete 之前额外回调（如下发 0xFF 停止高级参数）。"""
+        self._paradigm_fc_a1_ack_handler = handler
+
+    def _emit_paradigm_fc_a1_ack(self, channel: str) -> None:
+        h = self._paradigm_fc_a1_ack_handler
+        if h:
+            h(channel)
 
     def set_stim_service(self, stim_service: "StimTestService") -> None:
         self.stim_service = stim_service

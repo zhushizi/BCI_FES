@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Optional
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
@@ -39,6 +40,8 @@ class StimTestController:
         "horizontalScrollBar_time_rise": 5,
         "horizontalScrollBar_time_down": 5,
     }
+    # 开始测试：基础参数帧与下一条高级参数帧之间间隔（与训练范式 INTER_CMD_DELAY 一致）
+    _BASIC_ADVANCED_DELAY_SEC = 1.0
     _CURRENT_MODE_START = 0xEF
     _CURRENT_MODE_STOP = 0xFF
     _CURRENT_MAX_OUTPUT = 0x50
@@ -530,6 +533,7 @@ class StimTestController:
             self._save_current_params()
             # 开始测试：先发基础参数帧，再发高级参数帧；第7位使用 0xEF 表示开始电流模式。
             self._send_basic_params()
+            time.sleep(self._BASIC_ADVANCED_DELAY_SEC)
             self._send_advanced_params(current_value=self._CURRENT_MODE_START)
         finally:
             self._set_running_state(running=True)

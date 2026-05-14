@@ -88,6 +88,7 @@ class SerialHandler:
         pending_action_store: PendingActionStore,
         treat_ok_token: str,
         expected_channel: Optional[str] = None,
+        on_fc_a1_treat_success: Optional[Callable[[str], None]] = None,
     ) -> None:
         """
         expected_channel:
@@ -99,6 +100,7 @@ class SerialHandler:
         self._pending_action_store = pending_action_store
         self._treat_ok_token = treat_ok_token
         self._expected_channel = expected_channel
+        self._on_fc_a1_treat_success = on_fc_a1_treat_success
         self._recv_buffer = bytearray()
 
     def on_serial_data(self, data: bytes) -> None:
@@ -124,8 +126,15 @@ class SerialHandler:
             return
         trial_index = pending.trial_index
         action = pending.action
+        channel = pending.channel
+        was_fc_a1 = TreatmentAckFrame.buffer_contains_success_ack(bytes(self._recv_buffer))
         self._pending_action_store.value = None
         self._recv_buffer.clear()
+        if was_fc_a1 and self._on_fc_a1_treat_success:
+            try:
+                self._on_fc_a1_treat_success(channel)
+            except Exception:
+                self._logger.exception("FC A1 后训练停止回调失败")
         self._send_action_complete(trial_index, action)
 
     def contains_treat_ok(self, data: bytes) -> bool:
