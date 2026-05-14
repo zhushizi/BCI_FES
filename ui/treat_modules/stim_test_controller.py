@@ -596,6 +596,7 @@ class StimTestController:
             waveform=self._get_waveform_value(),
             pulse_width=self._get_pulse_width_value(),
             frequency=self._get_freq_value(),
+            stim_intensity=self._normalize_current_value(self._get_left_grade()),
         )
 
     def _send_advanced_params(self, current_value: int) -> None:

@@ -56,12 +56,20 @@ class StimTestApp:
     def device_code_for(self, channel: Optional[str], leg_part: Optional[str]) -> int:
         return self.service.device_code_for(channel, leg_part)
 
-    def send_basic_params(self, device: int, waveform: int, pulse_width: int, frequency: int) -> bool:
+    def send_basic_params(
+        self,
+        device: int,
+        waveform: int,
+        pulse_width: int,
+        frequency: int,
+        stim_intensity: int = 0,
+    ) -> bool:
         return self.service.send_basic_params(
             device=device,
             waveform=waveform,
             pulse_width=pulse_width,
             frequency=frequency,
+            stim_intensity=stim_intensity,
         )
 
     def send_advanced_params(

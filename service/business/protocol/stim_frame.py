@@ -24,12 +24,20 @@ class StimFrame:
     CURRENT_MODE_STOP = 0xFF
 
     @classmethod
-    def build_basic_params(cls, device: int, waveform: int, pulse_width: int, frequency: int) -> bytes:
+    def build_basic_params(
+        cls,
+        device: int,
+        waveform: int,
+        pulse_width: int,
+        frequency: int,
+        stim_intensity: int = RESERVED_BYTE,
+    ) -> bytes:
+        """stim_intensity：整帧第 9 字节（频率后的首字节），电刺激强度/档位。"""
         payload = [
             cls._byte(waveform),
             cls._byte(pulse_width),
             cls._byte(frequency),
-            cls.RESERVED_BYTE,
+            cls._byte(stim_intensity),
             cls.RESERVED_BYTE,
             cls.RESERVED_BYTE,
         ]

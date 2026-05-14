@@ -180,11 +180,18 @@ class StimTestService:
         """
         device = self.device_code_for(channel or "left", "小腿")
         stim_time = self.DEFAULT_STIM_TIME if time_byte is None else int(time_byte)
+        cur = int(current)
+        basic_intensity = (
+            0
+            if cur in (self.CURRENT_MODE_START, self.CURRENT_MODE_STOP)
+            else cur
+        )
         basic_ok = self.send_basic_params(
             device=device,
             waveform=scheme,
             pulse_width=self.DEFAULT_PULSE_WIDTH,
             frequency=frequency,
+            stim_intensity=basic_intensity,
         )
         advanced_ok = self.send_advanced_params(
             device=device,
@@ -195,19 +202,29 @@ class StimTestService:
         )
         return basic_ok and advanced_ok
 
-    def send_basic_params(self, device: int, waveform: int, pulse_width: int, frequency: int) -> bool:
+    def send_basic_params(
+        self,
+        device: int,
+        waveform: int,
+        pulse_width: int,
+        frequency: int,
+        stim_intensity: int = RESERVED_BYTE,
+    ) -> bool:
         self._validate_device(device)
         waveform = self._normalize_waveform(waveform)
         pulse_width = self._normalize_byte(pulse_width, "脉冲宽度")
         frequency = self._normalize_byte(frequency, "频率")
+        stim_intensity = self._normalize_basic_intensity(stim_intensity)
         return self._send_basic(
             device=device,
             waveform=waveform,
             pulse_width=pulse_width,
             frequency=frequency,
+            stim_intensity=stim_intensity,
             desc=(
                 f"基础参数 device=0x{device:02X}, waveform=0x{waveform:02X}, "
-                f"pulse_width={pulse_width}, frequency={frequency}"
+                f"pulse_width={pulse_width}, frequency={frequency}, "
+                f"stim_intensity={stim_intensity}"
             ),
         )
 
@@ -266,16 +283,25 @@ class StimTestService:
         )
 
     # ------------------ 协议构帧 ------------------
-    def _build_basic_frame(self, device: int, waveform: int, pulse_width: int, frequency: int) -> bytes:
+    def _build_basic_frame(
+        self,
+        device: int,
+        waveform: int,
+        pulse_width: int,
+        frequency: int,
+        stim_intensity: int,
+    ) -> bytes:
         """
         基础参数帧：
-        [55 AA] [0D] [设备位置] [0x01] [波形] [波宽] [频率] [保留3字节] [校验2字节]
+        [55 AA] [0D] [设备位置] [0x01] [波形] [波宽] [频率] [电刺激强度] [保留2字节] [校验2字节]
+        第 9 字节为电刺激强度（与 UI 档位一致，0~0x50）。
         """
         return StimFrame.build_basic_params(
             device=device,
             waveform=waveform,
             pulse_width=pulse_width,
             frequency=frequency,
+            stim_intensity=stim_intensity,
         )
 
     def _build_advanced_frame(
@@ -342,6 +368,10 @@ class StimTestService:
             return current
         return max(0, min(self.CURRENT_MAX_OUTPUT, current))
 
+    def _normalize_basic_intensity(self, value: int) -> int:
+        """基础帧强度字节：仅物理档位 0~最大输出，不含 EF/FF 模式码。"""
+        return max(0, min(self.CURRENT_MAX_OUTPUT, int(value) & 0xFF))
+
     def _serial_for_device(self, device: int) -> SerialHardware:
         d = int(device)
         if self.serial_hw_right is not None and d in (self.DEVICE_RIGHT_THIGH, self.DEVICE_RIGHT_CALF):
@@ -366,6 +396,7 @@ class StimTestService:
         waveform: int,
         pulse_width: int,
         frequency: int,
+        stim_intensity: int,
         desc: str,
     ) -> bool:
         packet = self._build_basic_frame(
@@ -373,6 +404,7 @@ class StimTestService:
             waveform=waveform,
             pulse_width=pulse_width,
             frequency=frequency,
+            stim_intensity=stim_intensity,
         )
         success = self._serial_for_device(device).send_data(packet)
         self._log_send(packet, success, desc=desc)
