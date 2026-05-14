@@ -18,7 +18,7 @@ class ParadigmActionApp:
     CURRENT_MODE_STOP = 0xFF  # 高级参数帧「电流/启停」字节：结束当前模式（与 StimFrame 一致）
     # 高级参数帧第 9 字节（保留位）：训练范式下发专用；电刺激测试页仍用 UI 侧 0x02
     ADVANCED_RESERVED_TRAINING = 0xFF
-    # 治疗/范式下发：高级起帧、基础参数、高级电流帧 三条之间间隔，便于下位机逐条识别
+    # 训练范式下发：高级起帧与高级电流帧之间间隔，便于下位机逐条识别（训练阶段不再发基础参数帧）
     INTER_CMD_DELAY_SEC = 1.0
 
     def __init__(self, session_app: SessionApp, stim_app: StimTestApp) -> None:
@@ -36,15 +36,8 @@ class ParadigmActionApp:
             self._logger.warning("未找到当前患者治疗参数，无法下发动作")
             return False
 
-        scheme_idx = treat_params.left_scheme_idx if channel == "left" else treat_params.right_scheme_idx
-        freq_idx = treat_params.left_freq_idx if channel == "left" else treat_params.right_freq_idx
         current = treat_params.left_grade if channel == "left" else treat_params.right_grade
-        pulse_width_idx = treat_params.left_pulse_width_idx if channel == "left" else treat_params.right_pulse_width_idx
-
-        scheme = int(scheme_idx or 0) + 1
-        frequency = int(freq_idx or 20)
         current_val = int(current or 0)
-        pulse_width = int(pulse_width_idx or 0) + 1
         # 刺激时长跟随 UI horizontalScrollBar_time_stim 设置（保存在 treat_params.stim_time_byte）
         stim_time_byte = int(getattr(treat_params, "stim_time_byte", 0) or 0) or self.TIME_BYTE
         leg_part = self._resolve_leg_part_from_session()
@@ -59,13 +52,6 @@ class ParadigmActionApp:
                 rise_time=self.START_RISE_TIME,
                 down_time=self.START_DOWN_TIME,
                 reserved_byte=self.ADVANCED_RESERVED_TRAINING,
-            )
-            time.sleep(self.INTER_CMD_DELAY_SEC)
-            self._stim_app.send_basic_params(
-                device=device,
-                waveform=scheme,
-                pulse_width=pulse_width,
-                frequency=frequency,
             )
             time.sleep(self.INTER_CMD_DELAY_SEC)
             self._stim_app.send_advanced_params(
