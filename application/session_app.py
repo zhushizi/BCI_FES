@@ -29,7 +29,7 @@ class PatientTreatParams:
     right_freq_idx: int = 20
     left_pulse_width_idx: int = 0
     right_pulse_width_idx: int = 0
-    stim_time_byte: int = 6
+    stim_time_byte: int = 3
 
 
 @dataclass

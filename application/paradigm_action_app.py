@@ -10,7 +10,7 @@ from application.stim_test_app import StimTestApp
 class ParadigmActionApp:
     """范式动作指令应用层：编排 session 与刺激指令下发。"""
 
-    TIME_BYTE = 0x06  # 训练第二帧刺激时长兜底默认；优先取 treat_params.stim_time_byte
+    TIME_BYTE = 0x03  # 训练第二帧刺激时长兜底默认（3s）；优先取 treat_params.stim_time_byte
     START_STIM_TIME = 0x0A
     START_RISE_TIME = 0x05
     START_DOWN_TIME = 0x05

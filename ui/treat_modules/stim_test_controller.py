@@ -35,7 +35,7 @@ class StimTestController:
     _STIM_DURATION_SCROLL_NAME = "horizontalScrollBar_time_stim"
     _STIM_DURATION_MIN = 1
     _STIM_DURATION_MAX = 4
-    _STIM_DURATION_DEFAULT = 1
+    _STIM_DURATION_DEFAULT = 3
     _TIME_DEFAULT_TENTHS_BY_SCROLLBAR = {
         "horizontalScrollBar_time_rise": 5,
         "horizontalScrollBar_time_down": 5,
