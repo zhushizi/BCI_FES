@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Tuple
 
 from application.config_app import ConfigApp
+from application.config_paths import resolve_config_path
 from application.session_app import SessionApp
 from service.business.ws.ws_notify_service import WsNotifyService
 
@@ -93,7 +94,7 @@ class TreatFlowApp:
         for key in candidate_keys:
             value = str(config.get(key) or "").strip()
             if value:
-                exe_path = value
+                exe_path = resolve_config_path(value)
                 break
         return exe_path, class_map.get(paradigm)
 

@@ -5,12 +5,13 @@ import os
 import subprocess
 from typing import Optional
 
+from application.config_paths import resolve_config_path
 from application.patient_app import PatientApp
 from application.training_sub_app import TrainingSubApp
 from ui.main_window.sub_window import SubWindow
 from ui.core.utils import safe_call
 
-DEFAULT_PARADIGM_EXE = r"C:\Users\24114\Desktop\ParadigmSSMVEP\ParadigmOne.exe"
+DEFAULT_PARADIGM_EXE = "@runtime/ssmvepDemo_V1.2/ParadigmOne.exe"
 
 
 class TrainingSubController:
@@ -38,9 +39,9 @@ class TrainingSubController:
         self._paradigm_process: Optional[subprocess.Popen] = None
         self._hide_console = bool(hide_console)
         if paradigm_exe_path is None:
-            self._paradigm_exe_path = DEFAULT_PARADIGM_EXE
+            self._paradigm_exe_path = resolve_config_path(DEFAULT_PARADIGM_EXE)
         else:
-            self._paradigm_exe_path = str(paradigm_exe_path).strip()
+            self._paradigm_exe_path = resolve_config_path(str(paradigm_exe_path).strip())
 
     def bind_signals(self) -> None:
         return
@@ -49,7 +50,7 @@ class TrainingSubController:
         next_path = str(exe_path or "").strip()
         if not next_path:
             return
-        self._paradigm_exe_path = next_path
+        self._paradigm_exe_path = resolve_config_path(next_path)
 
     def set_current_patient(self, patient_id: Optional[str]) -> None:
         self._current_patient_id = str(patient_id or "").strip() or None
@@ -72,7 +73,7 @@ class TrainingSubController:
         """
         启动范式模块（独立 exe）并切换到副屏。
         """
-        exe_path = self._paradigm_exe_path
+        exe_path = resolve_config_path(self._paradigm_exe_path)
         args = ["1"]
         if not os.path.isfile(exe_path):
             self._logger.error("范式程序不存在: %s", exe_path)

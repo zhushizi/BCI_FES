@@ -46,6 +46,7 @@ from infrastructure.communication.websocket_service import MainWebSocketService
 from infrastructure.decoder.decoder_manager import DecoderProcessManager
 
 # 应用层
+from application.config_paths import resolve_config_path
 from application import (
     UserApp,
     PatientApp,
@@ -627,12 +628,14 @@ def main() -> None:
     apply_application_icon(app)
     load_resources()
 
-    websocket_exe_path = str(config_data.get("websocket_exe") or "").strip() or None
+    websocket_raw = str(config_data.get("websocket_exe") or "").strip()
+    websocket_exe_path = resolve_config_path(websocket_raw) if websocket_raw else None
     hide_console = getattr(args, "hide_subprocess_console", False)
     ws_server_process = start_websocket_server(websocket_exe_path, hide_console=hide_console)
 
     decoder_port = str(config_data.get("decoder_port") or "").strip() or None
-    decoder_exe_path = str(config_data.get("decoder_exe") or "").strip() or None
+    decoder_raw = str(config_data.get("decoder_exe") or "").strip()
+    decoder_exe_path = resolve_config_path(decoder_raw) if decoder_raw else None
     ws_max_message_size = config_data.get("ws_max_message_size", AppConfig.ws_max_message_size)
     if args.ws_max_message_size is not None:
         ws_max_message_size = args.ws_max_message_size
@@ -642,6 +645,12 @@ def main() -> None:
             ws_max_message_size = None
     logger.info("decoder_exe=%s decoder_port=%s", decoder_exe_path, decoder_port)
 
+    pe_arg = getattr(args, "paradigm_exe_path", None)
+    if pe_arg is None:
+        paradigm_cli_path: Optional[str] = None
+    else:
+        pe_stripped = str(pe_arg).strip()
+        paradigm_cli_path = resolve_config_path(pe_stripped) if pe_stripped else None
     # 组合根：在入口统一装配依赖（UI -> 应用层 -> 服务层 -> 基础设施）
     config = AppConfig(
         com_port=args.com_port,
@@ -653,7 +662,7 @@ def main() -> None:
         ws_max_message_size=ws_max_message_size,
         enable_sub_window=args.enable_sub_window,
         swap_screens=args.swap_screens,
-        paradigm_exe_path=args.paradigm_exe_path,
+        paradigm_exe_path=paradigm_cli_path,
         decoder_port=decoder_port,
         decoder_exe_path=decoder_exe_path,
         hide_subprocess_console=getattr(args, "hide_subprocess_console", False),

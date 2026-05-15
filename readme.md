@@ -1,6 +1,5 @@
-打包命令：pyinstaller -n HW_BCI_NES main.py --icon ui\pic\icon_BCI.ico --hidden-import ui.resources_rc --collect-all PySide6 --add-data "db\HW_BCI.db;db" --add-data "ui\*.ui;ui" --add-data "infrastructure\config\config.json;infrastructure/config"
+打包命令：powershell -NoProfile -Command "if (!(Test-Path 'runtime')) { New-Item -ItemType Directory -Path 'runtime' | Out-Null }; pyinstaller -n HW_BCI_NES main.py --icon ui\pic\icon_BCI.ico --hidden-import ui.resources_rc --collect-all PySide6 --add-data 'db\HW_BCI.db;db' --add-data 'ui\*.ui;ui' --add-data 'ui\pic;ui/pic' --add-data 'ui\resources_rc.py;ui' --add-data 'infrastructure\config\config.json;infrastructure/config' --add-data 'runtime;runtime'"
 
-Windows 下 `--icon` 需为 `.ico`；若坚持用 `.png`，请先 `pip install Pillow` 以便 PyInstaller 自动转换。
 
 任务栏/窗口图标由程序内 `setWindowIcon` 加载 `ui/pic/icon_BCI.png`（见 `ui/core/app_icon.py`）；`HW_BCI_NES.spec` 已将该文件打入 `ui/pic`。其余 `ui/pic` 资源、`ui/resources_rc.py` 若未写入 spec，仍需复制到 `dist/HW_BCI_NES/_internal/ui`。
 

@@ -11,3 +11,10 @@ db/ReactionTimeCurve/
 *JSON-RPC*.pdf
 *JSON-RPC*.md
 
+# PyInstaller
+build/
+dist/
+HW_BCI_NES.spec
+
+# Local runtime (范式和外部 exe 等，不纳入版本库)
+runtime/
