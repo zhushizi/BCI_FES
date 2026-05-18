@@ -6,7 +6,7 @@ from typing import Optional
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QRegion
-from PySide6.QtWidgets import QLabel, QMessageBox, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QApplication, QLabel, QMessageBox, QPushButton, QVBoxLayout
 
 from ui.dialogs.tips_dialog import TipsDialog
 from ui.widgets.circle_level_widget import CircleLevelWidget
@@ -46,6 +46,7 @@ class StimTestController:
     _CURRENT_MODE_STOP = 0xFF
     _CURRENT_MAX_OUTPUT = 0x50
     _ADVANCED_RESERVED_STIM_PAGE = 0x02
+    _ADJUST_COOLDOWN_MS = 1000
 
     _STYLE_LEG_SELECTED = (
         "QPushButton { background-color: rgb(219, 233, 247); color: rgb(88, 122, 244); "
@@ -94,6 +95,7 @@ class StimTestController:
         self._left_circle_widget: Optional[CircleLevelWidget] = None
         self._right_circle_widget: Optional[CircleLevelWidget] = None
         self._time_scroll_widgets: dict[str, dict[str, object]] = {}
+        self._adjust_cooldown_until: float = 0.0
 
     def set_treat_entry_button(self, button_name: Optional[str]) -> None:
         self._treat_entry_button = (button_name or "").strip() or None
@@ -444,7 +446,6 @@ class StimTestController:
 
         start_btn = get_ui_attr(self.ui, "pushButton_start_test")
         if start_btn is not None:
-            safe_call(self._logger, getattr(start_btn, "setEnabled", None), self._hardware_online)
             safe_call(
                 self._logger,
                 getattr(start_btn, "setText", None),
@@ -459,14 +460,7 @@ class StimTestController:
                 f"QPushButton:disabled {{ background-color: #707070; color: white; border-radius: 12.6px; }}",
             )
 
-        # 单通道档位调节按钮：在线即可点，未开始测试时点击会弹提示
-        for btn_name in (
-            "pushButton_left_turnbig",
-            "pushButton_left_turnsmall",
-        ):
-            button = get_ui_attr(self.ui, btn_name)
-            safe_call(self._logger, getattr(button, "setEnabled", None), self._hardware_online)
-
+        self._apply_stim_controls_enabled()
         self._refresh_stim_leg_styles()
 
     def set_hardware_online(self, is_online: bool) -> None:
@@ -476,16 +470,23 @@ class StimTestController:
 
     def _update_device_dependent_controls(self) -> None:
         """更新依赖下位机在线状态的控件"""
-        enabled = bool(self._hardware_online)
-
-        if not enabled:
+        if not self._hardware_online:
             # 离线：重置档位为 0，恢复默认方案/频率
             self._set_left_grade(0)
             self._set_combo_index("comboBox_left_scheme", self._default_params.get("left_scheme_idx", 0))
             self._set_freq_value(self._default_params.get("left_freq_idx", self._FREQ_DEFAULT_MS))
             self._reset_stim_leg_completion_flags()
 
-        # 方案/频率控件：离线时不可选
+        self._apply_stim_controls_enabled()
+        self._refresh_stim_leg_styles()
+
+    def _stim_controls_enabled(self) -> bool:
+        """开始/停止与参数调节互斥：在线且不在 1s 交互冷却内才可操作。"""
+        return bool(self._hardware_online) and not self._is_adjust_cooldown_active()
+
+    def _apply_stim_controls_enabled(self) -> None:
+        """统一刷新开始/停止与所有参数调节控件的可用状态。"""
+        enabled = self._stim_controls_enabled()
         for name in (
             "comboBox_left_freq",
             "comboBox_left_scheme",
@@ -493,32 +494,26 @@ class StimTestController:
             "horizontalScrollBar_time_stim",
             "horizontalScrollBar_time_rise",
             "horizontalScrollBar_time_down",
-        ):
-            combo = get_ui_attr(self.ui, name)
-            safe_call(self._logger, getattr(combo, "setEnabled", None), enabled)
-        self._set_time_aux_controls_enabled(enabled)
-
-        # 档位增减按钮：在线即可点，未开始测试时点击会弹提示
-        for btn_name in (
             "pushButton_left_turnbig",
             "pushButton_left_turnsmall",
+            "pushButton_start_test",
         ):
-            button = get_ui_attr(self.ui, btn_name)
-            safe_call(self._logger, getattr(button, "setEnabled", None), enabled)
+            widget = get_ui_attr(self.ui, name)
+            safe_call(self._logger, getattr(widget, "setEnabled", None), enabled)
+        self._set_time_aux_controls_enabled(enabled)
+        app = QApplication.instance()
+        if app is not None:
+            app.processEvents()
 
-        # 开始/停止合一按钮：在线即可点，点击在开始/停止间切换
-        if hasattr(self.ui, "pushButton_start_test"):
-            safe_call(
-                self._logger,
-                getattr(self.ui.pushButton_start_test, "setEnabled", None),
-                enabled,
-            )
-
-        self._refresh_stim_leg_styles()
+    def _interaction_allowed(self) -> bool:
+        """开始/停止与参数调节交叉冷却中则拒绝操作。"""
+        return not self._is_adjust_cooldown_active()
 
     # ----------------- 开始/停止测试（同一按钮切换）-----------------
     def _on_start_stop_test_clicked(self) -> None:
         """点击开始测试按钮：当前运行则停止，当前停止则开始。"""
+        if not self._try_begin_adjust_cooldown():
+            return
         if self._test_running:
             self._on_stop_test_clicked()
         else:
@@ -537,6 +532,7 @@ class StimTestController:
             self._send_advanced_params(current_value=self._CURRENT_MODE_START)
         finally:
             self._set_running_state(running=True)
+            self._extend_adjust_cooldown()
 
     def _on_stop_test_clicked(self) -> None:
         try:
@@ -546,6 +542,7 @@ class StimTestController:
             ch = self._selected_leg_channel()
             self._stim_leg_stop_completed[ch] = self._get_left_grade() > 0
             self._set_running_state(running=False)
+            self._extend_adjust_cooldown()
 
     def stop_safe(self) -> None:
         self._stop_treatment_safe()
@@ -611,6 +608,35 @@ class StimTestController:
             reserved_byte=self._ADVANCED_RESERVED_STIM_PAGE,
         )
 
+    def _is_adjust_cooldown_active(self) -> bool:
+        return time.monotonic() < self._adjust_cooldown_until
+
+    def _extend_adjust_cooldown(self) -> None:
+        """延长冷却至至少 1s 后；开始测试内含 sleep 时需在结束时再次延长。"""
+        self._adjust_cooldown_until = max(
+            self._adjust_cooldown_until,
+            time.monotonic() + self._ADJUST_COOLDOWN_MS / 1000,
+        )
+        self._apply_stim_controls_enabled()
+        self._schedule_adjust_cooldown_end()
+
+    def _schedule_adjust_cooldown_end(self) -> None:
+        remaining_ms = max(0, int((self._adjust_cooldown_until - time.monotonic()) * 1000))
+        QTimer.singleShot(remaining_ms, self._end_adjust_cooldown)
+
+    def _try_begin_adjust_cooldown(self) -> bool:
+        if not self._interaction_allowed():
+            return False
+        self._extend_adjust_cooldown()
+        return True
+
+    def _end_adjust_cooldown(self) -> None:
+        if self._is_adjust_cooldown_active():
+            self._schedule_adjust_cooldown_end()
+            return
+        self._adjust_cooldown_until = 0.0
+        self._update_device_dependent_controls()
+
     def _get_stim_device_code(self) -> int:
         if self.stim_app:
             return self.stim_app.device_code_for(self._selected_leg_channel(), self._stim_leg_part_label())
@@ -666,6 +692,10 @@ class StimTestController:
         self._update_freq_value_label(value)
 
     def _on_left_freq_released(self) -> None:
+        if not self._interaction_allowed():
+            return
+        if not self._try_begin_adjust_cooldown():
+            return
         try:
             self._send_basic_params()
         except Exception:
@@ -677,6 +707,10 @@ class StimTestController:
         self._on_left_freq_released()
 
     def _on_left_scheme_changed(self, index: int) -> None:
+        if not self._interaction_allowed():
+            return
+        if not self._try_begin_adjust_cooldown():
+            return
         try:
             self._send_basic_params()
         except Exception:
@@ -684,6 +718,10 @@ class StimTestController:
         self._save_current_params()
 
     def _on_pulse_width_changed(self, index: int) -> None:
+        if not self._interaction_allowed():
+            return
+        if not self._try_begin_adjust_cooldown():
+            return
         try:
             self._send_basic_params()
         except Exception:
@@ -691,8 +729,12 @@ class StimTestController:
         self._save_current_params()
 
     def _on_left_grade_increase(self) -> None:
+        if not self._interaction_allowed():
+            return
         if not self._test_running:
             TipsDialog.show_tips(self.ui, "请先点击“开始测试”按钮")
+            return
+        if not self._try_begin_adjust_cooldown():
             return
         current_grade = self._get_left_grade()
         new_grade = current_grade + 1
@@ -702,8 +744,12 @@ class StimTestController:
         self._refresh_stim_leg_styles()
 
     def _on_left_grade_decrease(self) -> None:
+        if not self._interaction_allowed():
+            return
         if not self._test_running:
             TipsDialog.show_tips(self.ui, "请先点击“开始测试”按钮")
+            return
+        if not self._try_begin_adjust_cooldown():
             return
         current_grade = self._get_left_grade()
         new_grade = current_grade - 1
@@ -964,6 +1010,10 @@ QScrollBar::sub-line:horizontal {
 
     def _on_time_scrollbar_slider_released(self) -> None:
         """拖动滑条松手后下发 0x02 高级参数帧（刺激/上升/下降时间）。"""
+        if not self._interaction_allowed():
+            return
+        if not self._try_begin_adjust_cooldown():
+            return
         try:
             self._send_advanced_params(current_value=self._get_left_grade())
             self._save_current_params()
@@ -973,6 +1023,10 @@ QScrollBar::sub-line:horizontal {
     def _step_time_scrollbar(self, name: str, step: int) -> None:
         scrollbar = get_ui_attr(self.ui, name)
         if scrollbar is None:
+            return
+        if not self._interaction_allowed():
+            return
+        if not self._try_begin_adjust_cooldown():
             return
         scrollbar.setValue(
             self._normalize_time_scroll_value(name, int(scrollbar.value()) + int(step))
